@@ -6,6 +6,7 @@ import authRoutes from "./routes/authRoutes.js";
 import deliveryPersonRouter from "./routes/deliveryPersonRoutes.js";
 import deliveryRouter from "./routes/deliveryRoutes.js";
 import orderRouter from "./routes/orderRoutes.js";
+import shopRouter from "./routes/shopRoutes.js";
 
 const app = express();
 app.use(express.json());
@@ -25,6 +26,7 @@ app.use("/api/users" , authRoutes);
 app.use("/api/deliveryPerson" , deliveryPersonRouter);
 app.use("/api/delivery" , deliveryRouter)
 app.use("/api/order" ,orderRouter)
+app.use("/api/shop" , shopRouter)
 
 
 app.listen(PORT, () =>
