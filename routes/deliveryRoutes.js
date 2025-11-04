@@ -6,7 +6,7 @@ import {
   createDelivery,
   updateDelivery,
   deleteDelivery,
-} from "../controllers/delivery.js";
+} from "../controllers/deliveryController.js";
 
 const deliveryRouter = express.Router();
 
