@@ -10,10 +10,10 @@ import {
 
 const shopRouter = express.Router();
 
-authRouter.get("/", getAllShop);
-authRouter.get("/:id", getShopById);
-authRouter.post("/", createShop);
-authRouter.put("/:id", updateShop);
-authRouter.delete("/:id", deleteShop);
+shopRouter.get("/", getAllShop);
+shopRouter.get("/:id", getShopById);
+shopRouter.post("/", createShop);
+shopRouter.put("/:id", updateShop);
+shopRouter.delete("/:id", deleteShop);
 
 export default shopRouter;
