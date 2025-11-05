@@ -7,9 +7,13 @@ import deliveryPersonRouter from "./routes/deliveryPersonRoutes.js";
 import deliveryRouter from "./routes/deliveryRoutes.js";
 import orderRouter from "./routes/orderRoutes.js";
 import shopRouter from "./routes/shopRoutes.js";
+import cors from "cors";
+
+const allowedOrigins = []
 
 const app = express();
 app.use(express.json());
+app.use(cors({origin: allowedOrigins , credentials:true}))
 
 
 app.get("/", (req,res) => {
