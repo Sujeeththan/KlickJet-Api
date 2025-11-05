@@ -7,8 +7,26 @@ export const getAllOrder = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const totalOrders = await Order.countDocuments();
-    const orders = await Order.find().skip(skip).limit(limit);
+    const filter = {};
+
+    if (req.query.deliverer) {
+      filter.deliverer = { $regex: req.query.deliverer, $option: "i" };
+    }
+
+    if (req.query.customer) {
+      filter.customer = { $regex: req.query.customer, $option: "i" };
+    }
+
+    if (req.query.item) {
+      filter.item = { $regex: req.query.item, $option: "i" };
+    }
+
+    const totalOrders = await Order.countDocuments(filter);
+    const orders = await Order.find(filter).skip(skip).limit(limit);
+
+    //  .populate('customer')
+    //  .populate('deliverer')
+    //  .populate('item')
 
     res.status(200).json({
       success: true,
@@ -17,6 +35,7 @@ export const getAllOrder = async (req, res) => {
       message: "Order fetched successfully",
       totalOrders,
       totalPages: Math.ceil(totalOrders / limit),
+      filter,
       orders,
     });
   } catch (error) {
