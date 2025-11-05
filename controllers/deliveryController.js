@@ -7,8 +7,22 @@ export const getAllDelivery = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const deliveries = await Delivery.find().skip(skip).limit(limit);
-    const totalDeliveries = await Delivery.countDocuments();
+    const filter = {};
+
+    if (req.query.customer) {
+      filter.customer = { $regex: req.query.customer, $option: "i" };
+    }
+
+    if (req.query.deliverer) {
+      filter.deliverer = { $regex: req.query.deliverer, $option: "i" };
+    }
+
+    if (req.query.status) {
+      filter.status = { $regex: req.query.status, $option: "i" };
+    }
+
+    const deliveries = await Delivery.find(filter).skip(skip).limit(limit);
+    const totalDeliveries = await Delivery.countDocuments(filter);
 
     res.status(200).json({
       success: true,
@@ -17,6 +31,7 @@ export const getAllDelivery = async (req, res) => {
       limit,
       totalDeliveries,
       totalPages: Math.ceil(totalDeliveries / limit),
+      filter,
       deliveries,
     });
   } catch (error) {
@@ -90,7 +105,6 @@ export const deleteDelivery = async (req, res) => {
 
     if (!delivery) {
       return res.status(404).json({
-       
         message: "Delivery Not Found or Already Deleted",
       });
     }
@@ -102,12 +116,10 @@ export const deleteDelivery = async (req, res) => {
   } catch (error) {
     if (error.name === "CastError") {
       return res.status(400).json({
-       
         message: "Invalid Delivery ID Format",
       });
     }
     res.status(500).json({
-     
       message: "Failed to Delete Delivery",
       error: error.message,
     });
