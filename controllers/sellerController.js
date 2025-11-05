@@ -3,18 +3,30 @@ import Seller from "../models/Seller.js";
 // Get All Seller with Pagination
 export const getAllSeller = async (req, res) => {
   try {
-    // Default values if not provided
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-
-    // Calculate skip
     const skip = (page - 1) * limit;
 
-    // Fetch paginated seller
-    const seller = await Seller.find().skip(skip).limit(limit);
+    const filter = {};
 
-    // Count total seller for pagination metadata
-    const totalSeller = await Seller.countDocuments();
+    if (req.query.status) {
+      filter.status = { $regex: req.query.status, $option: "i" };
+    }
+
+    if (req.query.name) {
+      filter.name = { $regex: req.query.name, $option: "i" };
+    }
+
+    if (req.query.email) {
+      filter.email = { $regex: req.query.email, $option: "i" };
+    }
+
+    if (req.query.shopName) {
+      filter.shopName = { $regex: req.query.shopName, $option: "i" };
+    }
+
+    const seller = await Seller.find(filter).skip(skip).limit(limit);
+    const totalSeller = await Seller.countDocuments(filter);
 
     res.status(200).json({
       success: true,
@@ -23,6 +35,7 @@ export const getAllSeller = async (req, res) => {
       limit,
       totalSeller,
       totalPages: Math.ceil(totalSeller / limit),
+      filter,
       seller,
     });
   } catch (error) {
