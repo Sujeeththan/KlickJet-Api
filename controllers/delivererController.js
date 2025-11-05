@@ -31,6 +31,7 @@ export const getAllDeliverer = async (req, res) => {
       limit,
       totalDeliverer,
       totalPages: Math.ceil(totalDeliverer / limit),
+      filter,
       deliverer,
     });
   } catch (error) {
