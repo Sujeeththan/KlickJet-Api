@@ -1,4 +1,4 @@
-import Deliverer from "../models/Deliverer";
+import Deliverer from "../models/Deliverer.js";
 
 //  Get All Deliverer with Pagination
 export const getAllDeliverer = async (req, res) => {
