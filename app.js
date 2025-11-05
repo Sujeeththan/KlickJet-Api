@@ -2,7 +2,6 @@ import express from "express";
 import connectDB from "./config/db.js";
 import customerRouter from "./routes/customerRoutes.js";
 import itemRouter from "./routes/itemRoutes.js";
-import deliveryPersonRouter from "./routes/delivererRoutes.js";
 import deliveryRouter from "./routes/deliveryRoutes.js";
 import orderRouter from "./routes/orderRoutes.js";
 import cors from "cors";
