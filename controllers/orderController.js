@@ -14,6 +14,7 @@ export const getAllOrder = async (req, res) => {
       success: true,
       page,
       limit,
+      message: "Order fetched successfully",
       totalOrders,
       totalPages: Math.ceil(totalOrders / limit),
       orders,
