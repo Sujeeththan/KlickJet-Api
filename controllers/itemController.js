@@ -7,8 +7,18 @@ export const getAllItems = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const totalItems = await Item.countDocuments();
-    const items = await Item.find().skip(skip).limit(limit);
+    const filter = {};
+
+    if (req.query.category) {
+      filter.category = { $regex: req.query.category, $option: "i" };
+    }
+
+    if (req.query.status) {
+      filter.status = { $regex: req.query.status, $option: "i" };
+    }
+
+    const totalItems = await Item.countDocuments(filter);
+    const items = await Item.find(filter).skip(skip).limit(limit);
 
     res.status(200).json({
       success: true,
@@ -16,10 +26,11 @@ export const getAllItems = async (req, res) => {
       limit,
       totalItems,
       totalPages: Math.ceil(totalItems / limit),
+      filter,
       items,
     });
   } catch (error) {
-    res.status(500).json({  error: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -28,14 +39,14 @@ export const getItemById = async (req, res) => {
   try {
     const item = await Item.findById(req.params.id);
     if (!item) {
-      return res.status(404).json({  message: "Item not found" });
+      return res.status(404).json({ message: "Item not found" });
     }
     res.status(200).json({ success: true, item });
   } catch (error) {
     if (error.name === "CastError") {
-      return res.status(400).json({  message: "Invalid item ID format" });
+      return res.status(400).json({ message: "Invalid item ID format" });
     }
-    res.status(500).json({  error: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -46,7 +57,7 @@ export const createItem = async (req, res) => {
     const savedItem = await newItem.save();
 
     if (!savedItem) {
-      return res.status(400).json({  message: "Item not created" });
+      return res.status(400).json({ message: "Item not created" });
     }
 
     res.status(201).json({
@@ -55,7 +66,7 @@ export const createItem = async (req, res) => {
       item: savedItem,
     });
   } catch (error) {
-    res.status(500).json({  error: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -66,7 +77,7 @@ export const updateItem = async (req, res) => {
     const item = await Item.findByIdAndUpdate(id, req.body, { new: true });
 
     if (!item) {
-      return res.status(404).json({  message: "Item not found" });
+      return res.status(404).json({ message: "Item not found" });
     }
 
     res.status(200).json({
@@ -76,9 +87,9 @@ export const updateItem = async (req, res) => {
     });
   } catch (error) {
     if (error.name === "CastError") {
-      return res.status(400).json({  message: "Invalid item ID format" });
+      return res.status(400).json({ message: "Invalid item ID format" });
     }
-    res.status(500).json({  error: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -89,7 +100,6 @@ export const deleteItem = async (req, res) => {
 
     if (!item) {
       return res.status(404).json({
-        
         message: "Item already deleted or not found",
       });
     }
@@ -101,12 +111,10 @@ export const deleteItem = async (req, res) => {
   } catch (error) {
     if (error.name === "CastError") {
       return res.status(400).json({
-        
         message: "Invalid item ID format",
       });
     }
     res.status(500).json({
-      
       error: "Failed to delete item",
     });
   }
