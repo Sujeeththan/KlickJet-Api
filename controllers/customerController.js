@@ -7,6 +7,23 @@ export const getAllCustomers = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
+    const filter = {};
+
+    if (req.query.name) {
+      filter.name = { $regex: req.query.name, $option: "i" };
+    }
+
+    if (req.query.email) {
+      filter.email = { $regex: req.query.email, $option: "i" };
+    }
+
+    if (req.query.phone) {
+      filter.phone = { $regex: req.query.phone, $option: "i" };
+    }
+
+    const customer = await Customer.find(filter).skip(skip).limit(limit);
+    const total = await Customer.countDocuments(filter);
+
     const customers = await Customer.find().skip(skip).limit(limit);
     const totalCustomers = await Customer.countDocuments();
 
@@ -17,10 +34,11 @@ export const getAllCustomers = async (req, res) => {
       limit,
       totalCustomers,
       totalPages: Math.ceil(totalCustomers / limit),
+      filter,
       customers,
     });
   } catch (error) {
-    res.status(500).json({  error: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -29,14 +47,14 @@ export const getCustomerById = async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id);
     if (!customer) {
-      return res.status(404).json({  message: "Customer Not Found" });
+      return res.status(404).json({ message: "Customer Not Found" });
     }
     res.status(200).json({ success: true, customer });
   } catch (error) {
     if (error.name === "CastError") {
-      return res.status(400).json({  message: "Invalid Customer ID Format" });
+      return res.status(400).json({ message: "Invalid Customer ID Format" });
     }
-    res.status(500).json({  error: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -52,7 +70,7 @@ export const createCustomer = async (req, res) => {
       customer: savedCustomer,
     });
   } catch (error) {
-    res.status(500).json({  error: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -66,7 +84,7 @@ export const updateCustomer = async (req, res) => {
     });
 
     if (!updatedCustomer) {
-      return res.status(404).json({  message: "Customer Not Found" });
+      return res.status(404).json({ message: "Customer Not Found" });
     }
 
     res.status(200).json({
@@ -76,9 +94,9 @@ export const updateCustomer = async (req, res) => {
     });
   } catch (error) {
     if (error.name === "CastError") {
-      return res.status(400).json({  message: "Invalid Customer ID Format" });
+      return res.status(400).json({ message: "Invalid Customer ID Format" });
     }
-    res.status(500).json({  error: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -89,7 +107,6 @@ export const deleteCustomer = async (req, res) => {
 
     if (!customer) {
       return res.status(404).json({
-        
         message: "Customer Not Found or Already Deleted",
       });
     }
@@ -101,12 +118,10 @@ export const deleteCustomer = async (req, res) => {
   } catch (error) {
     if (error.name === "CastError") {
       return res.status(400).json({
-        
         message: "Invalid Customer ID Format",
       });
     }
     res.status(500).json({
-      
       message: "Failed to Delete Customer",
       error: error.message,
     });
