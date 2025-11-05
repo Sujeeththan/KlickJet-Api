@@ -8,16 +8,20 @@ import deliveryRouter from "./routes/deliveryRoutes.js";
 import orderRouter from "./routes/orderRoutes.js";
 import shopRouter from "./routes/shopRoutes.js";
 import cors from "cors";
+import cookieParser from "cookie-parser";
+import userRouter from "./routes/userRoutes.js";
 
 const allowedOrigins = [];
 
 const app = express();
 app.use(express.json());
+app.use(cookieParser());
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 app.get("/", (req, res) => {
   res.send("My project pos system working");
 });
+app.use("/api/user", userRouter);
 
 const PORT = process.env.PORT;
 
