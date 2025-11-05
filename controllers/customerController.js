@@ -21,11 +21,8 @@ export const getAllCustomers = async (req, res) => {
       filter.phone = { $regex: req.query.phone, $option: "i" };
     }
 
-    const customer = await Customer.find(filter).skip(skip).limit(limit);
-    const total = await Customer.countDocuments(filter);
-
-    const customers = await Customer.find().skip(skip).limit(limit);
-    const totalCustomers = await Customer.countDocuments();
+    const customers = await Customer.find(filter).skip(skip).limit(limit);
+    const totalCustomers = await Customer.countDocuments(filter);
 
     res.status(200).json({
       success: true,
