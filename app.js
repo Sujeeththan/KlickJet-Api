@@ -7,7 +7,8 @@ import cors from "cors";
 import userRouter from "./routes/userRoutes.js";
 import sellerRouter from "./routes/sellerRoutes.js";
 import delivererRouter from "./routes/delivererRoutes.js";
-import PaymentRouter from "./routes/paymentRoutes.js";
+import paymentRouter from "./routes/paymentRoutes.js";
+import productRouter from "./routes/productRoutes.js";
 
 const allowedOrigins = [];
 
@@ -30,7 +31,8 @@ app.use("/api/deliverer", delivererRouter);
 app.use("/api/delivery", deliveryRouter);
 app.use("/api/order", orderRouter);
 app.use("/api/seller", sellerRouter);
-app.use("/api/payment", PaymentRouter);
+app.use("/api/payment", paymentRouter);
+app.use("/api/product", productRouter);
 
 app.listen(PORT, () =>
   console.log(`Server is running in http://localhost:${PORT}`)
