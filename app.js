@@ -16,7 +16,7 @@ app.use(express.json());
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 app.get("/", (req, res) => {
-  res.send("My project pos system working");
+  res.send("My project final project system working");
 });
 app.use("/api/user", userRouter);
 
