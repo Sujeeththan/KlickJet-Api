@@ -4,7 +4,7 @@ const customerSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, "Customer name is required"],
+      required: true,
       trim: true,
     },
 
@@ -15,8 +15,10 @@ const customerSchema = new mongoose.Schema(
       trim: true,
       match: [/.+\@.+\..+/, "Invalid email"],
     },
-
-    phone: { type: String, required: [true, "Phone number required"] },
+    phone_no: {
+      type: String,
+      required: true,
+    },
 
     address: {
       type: String,
