@@ -8,12 +8,12 @@ import {
   deletePayment,
 } from "../controllers/paymentController.js";
 
-const PaymentRouter = express.Router();
+const paymentRouter = express.Router();
 
-PaymentRouter.get("/", getAllPayment);
-PaymentRouter.get("/:id", getPaymentById);
-PaymentRouter.post("/", createPayment);
-PaymentRouter.put("/:id", updatePayment);
-PaymentRouter.delete("/:id", deletePayment);
+paymentRouter.get("/", getAllPayment);
+paymentRouter.get("/:id", getPaymentById);
+paymentRouter.post("/", createPayment);
+paymentRouter.put("/:id", updatePayment);
+paymentRouter.delete("/:id", deletePayment);
 
-export default PaymentRouter;
+export default paymentRouter;
