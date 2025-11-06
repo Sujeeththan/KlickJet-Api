@@ -10,14 +10,17 @@ const delivererSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    vehicleNumber: {
+    email: {
       type: String,
-      default: null,
     },
-    status: {
+    vehicle_no: {
       type: String,
-      enum: ["available", "on-delivery", "inactive"],
-      default: "available",
+    },
+    vehicle_type: {
+      type: String,
+    },
+    address: {
+      type: String,
     },
     createdAt: {
       type: Date,
