@@ -20,6 +20,7 @@ app.get("/", (req, res) => {
   res.send("My project final project system working");
 });
 app.use("/api/user", userRouter);
+app.use(cors());
 
 const PORT = process.env.PORT;
 
