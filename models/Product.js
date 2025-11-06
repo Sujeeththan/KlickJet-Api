@@ -2,12 +2,7 @@ import mongoose from "mongoose";
 
 const productSchema = new mongoose.Schema(
   {
-    product_id: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    product_name: {
+    name: {
       type: String,
       required: true,
       trim: true,
@@ -17,9 +12,13 @@ const productSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-    in_stock: {
+    instock: {
       type: Boolean,
       default: true,
+    },
+    discount: {
+      type: Number,
+      default: 0,
     },
   },
   { timestamps: true }

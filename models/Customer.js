@@ -40,12 +40,6 @@ const customerSchema = new mongoose.Schema(
       default: null,
     },
 
-    notes: {
-      type: String,
-      optional: null,
-      trim: true,
-    },
-
     createdAt: {
       type: Date,
       default: Date.now,

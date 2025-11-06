@@ -7,7 +7,7 @@ const sellerSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    shopName: {
+    shop_name: {
       type: String,
       required: true,
       trim: true,
@@ -19,20 +19,15 @@ const sellerSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
     },
-    phone: {
+    phone_no: {
       type: String,
       required: true,
       match: /^[0-9]{10,15}$/,
     },
-    password: {
+
+    address: {
       type: String,
       required: true,
-      minlength: 6,
-    },
-
-    totalSales: {
-      type: Number,
-      default: 0,
     },
     isVerified: {
       type: Boolean,
