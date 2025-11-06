@@ -2,28 +2,26 @@ import mongoose from "mongoose";
 
 const deliverySchema = new mongoose.Schema(
   {
-    order: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Order",
-      required: true,
-    },
-    deliverer: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Deliverer",
-      required: true,
-    },
     address: {
       type: String,
       required: true,
     },
+    delivered_date: {
+      type: Date,
+    },
+    order_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
+      required: true,
+    },
+    deliverer_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Deliverer",
+    },
     status: {
       type: String,
-      enum: ["pending", "dispatched", "delivered", "cancelled"],
+      enum: ["pending", "in_transit", "delivered", "cancelled"],
       default: "pending",
-    },
-    deliveryDate: {
-      type: Date,
-      default: null,
     },
     createdAt: {
       type: Date,
