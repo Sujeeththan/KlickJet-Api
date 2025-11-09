@@ -1,36 +1,75 @@
 import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 
 const sellerSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: true,
+      required: [true, "Name is required"],
       trim: true,
+      minlength: [2, "Name must be at least 2 characters"],
+      maxlength: [50, "Name cannot exceed 50 characters"],
     },
+
     shopName: {
       type: String,
-      required: true,
+      required: [true, "Shop name is required"],
       trim: true,
+      minlength: [2, "Shop name must be at least 2 characters"],
+      maxlength: [100, "Shop name cannot exceed 100 characters"],
     },
+
     email: {
       type: String,
-      required: true,
+      required: [true, "Email is required"],
       unique: true,
       lowercase: true,
+      trim: true,
+      match: [
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        "Please provide a valid email address",
+      ],
     },
+
+    password: {
+      type: String,
+      required: [true, "Password is required"],
+      minlength: [8, "Password must be at least 8 characters"],
+      select: false, // Don't return password by default
+    },
+
     phone_no: {
       type: String,
-      required: true,
-      match: /^[0-9]{10,15}$/,
+      required: [true, "Phone number is required"],
+      match: [/^[0-9]{10,15}$/, "Please provide a valid phone number"],
     },
 
     address: {
       type: String,
-      required: true,
+      required: [true, "Address is required"],
+      trim: true,
     },
-    isVerified: {
+
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
+
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
+
+    isActive: {
       type: Boolean,
-      default: false,
+      default: true,
     },
 
     createdAt: {
@@ -38,13 +77,22 @@ const sellerSchema = new mongoose.Schema(
       default: Date.now,
     },
   },
-
   {
     timestamps: false,
     versionKey: false,
   }
 );
 
-const Seller = mongoose.model("Seller", sellerSchema);
+// Hash password before saving
+sellerSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  this.password = await bcrypt.hash(this.password, 12);
+  next();
+});
 
-export default Seller;
+// Method to compare password
+sellerSchema.methods.comparePassword = async function (candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
+
+export default mongoose.model("Seller", sellerSchema);

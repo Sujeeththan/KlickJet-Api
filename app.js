@@ -9,6 +9,7 @@ import sellerRouter from "./routes/sellerRoutes.js";
 import delivererRouter from "./routes/delivererRoutes.js";
 import paymentRouter from "./routes/paymentRoutes.js";
 import productRouter from "./routes/productRoutes.js";
+import authRouter from "./routes/authRoutes.js";
 
 const allowedOrigins = [];
 
@@ -19,13 +20,15 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.get("/", (req, res) => {
   res.send("My project final project system working");
 });
-app.use("/api/user", userRouter);
-app.use(cors());
 
 const PORT = process.env.PORT;
 
 connectDB();
 
+// Authentication routes
+app.use("/api/auth", authRouter);
+
+// Other routes
 app.use("/api/customers", customerRouter);
 app.use("/api/users", userRouter);
 app.use("/api/deliverer", delivererRouter);
