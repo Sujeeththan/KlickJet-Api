@@ -1,134 +1,148 @@
 import Seller from "../models/Seller.js";
+import { AppError } from "../middleware/errorHandler.js";
+import { catchAsync } from "../middleware/errorHandler.js";
 
-// Get All Seller with Pagination
-export const getAllSeller = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+//   Get all sellers (Admin only, or seller can get their own)
+//   GET /api/sellers
+//   Private/Admin or Seller (own profile)
+export const getAllSellers = catchAsync(async (req, res, next) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
 
-    const filter = {};
+  const filter = {};
 
-    if (req.query.status) {
-      filter.status = { $regex: req.query.status, $option: "i" };
-    }
-
-    if (req.query.name) {
-      filter.name = { $regex: req.query.name, $option: "i" };
-    }
-
-    if (req.query.email) {
-      filter.email = { $regex: req.query.email, $option: "i" };
-    }
-
-    if (req.query.shopName) {
-      filter.shopName = { $regex: req.query.shopName, $option: "i" };
-    }
-
-    const seller = await Seller.find(filter).skip(skip).limit(limit);
-    const totalSeller = await Seller.countDocuments(filter);
-
-    res.status(200).json({
-      success: true,
-      message: "Seller fetched successfully",
-      page,
-      limit,
-      totalSeller,
-      totalPages: Math.ceil(totalSeller / limit),
-      filter,
-      seller,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  // Sellers can only see their own profile
+  if (req.user.role === "seller") {
+    filter._id = req.user.id;
   }
-};
 
-// Get Seller by ID
-export const getSellerById = async (req, res) => {
-  try {
-    const seller = await Seller.findById(req.params.id);
-    if (!seller) {
-      return res.status(404).json({ message: "Seller Not Found" });
-    }
-    res.status(200).json({ seller });
-  } catch (error) {
-    if (error.name === "CastError") {
-      return res.status(400).json({ message: "Invalid Seller ID Format" });
-    }
-    res.status(500).json({ error: error.message });
+  if (req.query.status) {
+    filter.status = req.query.status;
   }
-};
 
-// Create Seller
-export const createSeller = async (req, res) => {
-  try {
-    const newSeller = new Seller(req.body);
-    const savedSeller = await newSeller.save();
-    res.status(201).json({
-      success: true,
-      message: "Seller Created Successfully",
-      seller: savedSeller,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  if (req.query.name) {
+    filter.name = { $regex: req.query.name, $options: "i" };
   }
-};
 
-// Update seller
-export const updateSeller = async (req, res) => {
-  try {
-    const id = req.params.id;
-
-    const updatedSeller = await Seller.findByIdAndUpdate(id, req.body, {
-      new: true,
-      upsert: false,
-      runValidators: true,
-    });
-
-    if (!updatedSeller) {
-      return res.status(404).json({ message: "Seller Not Found" });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Seller Updated Successfully",
-      seller: updatedSeller,
-    });
-  } catch (error) {
-    if (error.name === "CastError") {
-      return res.status(400).json({ message: "Invalid Seller ID Format" });
-    }
-    res.status(500).json({ error: error.message });
+  if (req.query.email) {
+    filter.email = { $regex: req.query.email, $options: "i" };
   }
-};
 
-// Delete Seller
-export const deleteSeller = async (req, res) => {
-  try {
-    const seller = await Seller.findByIdAndDelete(req.params.id);
-
-    if (!seller) {
-      return res.status(404).json({
-        success: false,
-        message: "Seller Not Found or Already Deleted",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Seller Deleted Successfully",
-    });
-  } catch (error) {
-    if (error.name === "CastError") {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid Seller ID Format",
-      });
-    }
-    res.status(500).json({
-      success: false,
-      message: "Failed to Delete Seller",
-      error: error.message,
-    });
+  if (req.query.shopName) {
+    filter.shopName = { $regex: req.query.shopName, $options: "i" };
   }
-};
+
+  const sellers = await Seller.find(filter)
+    .select("-password")
+    .skip(skip)
+    .limit(limit)
+    .sort({ createdAt: -1 })
+    .populate("approvedBy", "name email");
+
+  const totalSellers = await Seller.countDocuments(filter);
+
+  res.status(200).json({
+    success: true,
+    message: "Sellers fetched successfully",
+    page,
+    limit,
+    totalSellers,
+    totalPages: Math.ceil(totalSellers / limit),
+    sellers,
+  });
+});
+
+//   Get seller by ID
+//   GET /api/sellers/:id
+//   Private/Admin or Seller (own profile)
+export const getSellerById = catchAsync(async (req, res, next) => {
+  const seller = await Seller.findById(req.params.id)
+    .select("-password")
+    .populate("approvedBy", "name email");
+
+  if (!seller) {
+    return next(new AppError("Seller not found", 404));
+  }
+
+  // Sellers can only view their own profile
+  if (req.user.role === "seller" && seller._id.toString() !== req.user.id) {
+    return next(new AppError("Not authorized to access this seller", 403));
+  }
+
+  res.status(200).json({
+    success: true,
+    seller,
+  });
+});
+
+//   Update seller
+//   PUT /api/sellers/:id
+//   Private/Seller (own profile) or Admin
+export const updateSeller = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  const seller = await Seller.findById(id);
+  if (!seller) {
+    return next(new AppError("Seller not found", 404));
+  }
+
+  // Sellers can only update their own profile (and cannot change status)
+  if (req.user.role === "seller") {
+    if (seller._id.toString() !== req.user.id) {
+      return next(new AppError("Not authorized to update this seller", 403));
+    }
+    // Sellers cannot update status, approvedBy, or approvedAt
+    delete req.body.status;
+    delete req.body.approvedBy;
+    delete req.body.approvedAt;
+  }
+
+  // Don't allow updating password through this route
+  if (req.body.password) {
+    return next(new AppError("Password cannot be updated through this route", 400));
+  }
+
+  // Check if email is being updated and if it already exists
+  if (req.body.email && req.body.email !== seller.email) {
+    const existingSeller = await Seller.findOne({ email: req.body.email, _id: { $ne: id } });
+    if (existingSeller) {
+      return next(new AppError("Email already registered", 400));
+    }
+  }
+
+  // If admin is updating status to approved, set approvedBy and approvedAt
+  if (req.user.role === "admin" && req.body.status === "approved" && seller.status !== "approved") {
+    req.body.approvedBy = req.user.id;
+    req.body.approvedAt = new Date();
+  }
+
+  const updatedSeller = await Seller.findByIdAndUpdate(id, req.body, {
+    new: true,
+    runValidators: true,
+  })
+    .select("-password")
+    .populate("approvedBy", "name email");
+
+  res.status(200).json({
+    success: true,
+    message: "Seller updated successfully",
+    seller: updatedSeller,
+  });
+});
+
+//   Delete seller (Admin only)
+//   DELETE /api/sellers/:id
+//   Private/Admin
+export const deleteSeller = catchAsync(async (req, res, next) => {
+  const seller = await Seller.findByIdAndDelete(req.params.id);
+
+  if (!seller) {
+    return next(new AppError("Seller not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Seller deleted successfully",
+  });
+});

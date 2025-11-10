@@ -1,137 +1,124 @@
 import Deliverer from "../models/Deliverer.js";
+import { AppError } from "../middleware/errorHandler.js";
+import { catchAsync } from "../middleware/errorHandler.js";
 
-//  Get All Deliverer with Pagination
-export const getAllDeliverer = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+//    Get all deliverers
+//    GET /api/deliverers
+//    Private/Admin
+export const getAllDeliverers = catchAsync(async (req, res, next) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
 
-    const filter = {};
+  const filter = {};
 
-    if (req.query.name) {
-      filter.name = { $regex: req.query.name, $option: "i" };
-    }
-
-    if (req.query.phone) {
-      filter.phone = { $regex: req.query.phone, $option: "i" };
-    }
-
-    if (req.query.status) {
-      filter.status = { $regex: req.query.status, $option: "i" };
-    }
-
-    const deliverer = await Deliverer.find(filter).skip(skip).limit(limit);
-    const totalDeliverer = await Deliverer.countDocuments(filter);
-
-    res.status(200).json({
-      success: true,
-      message: "Deliverer fetched successfully",
-      page,
-      limit,
-      totalDeliverer,
-      totalPages: Math.ceil(totalDeliverer / limit),
-      filter,
-      deliverer,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+  if (req.query.name) {
+    filter.name = { $regex: req.query.name, $options: "i" };
   }
-};
 
-//  Get Deliverer by ID
-export const getDelivererById = async (req, res) => {
-  try {
-    const deliverer = await Deliverer.findById(req.params.id);
-    if (!deliverer) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Deliverer not found" });
-    }
-    res.status(200).json({ success: true, deliverer });
-  } catch (error) {
-    if (error.name === "CastError") {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid Deliverer ID Format" });
-    }
-    res.status(500).json({ success: false, error: error.message });
+  if (req.query.phone_no) {
+    filter.phone_no = { $regex: req.query.phone_no, $options: "i" };
   }
-};
 
-//  Create Deliverer
-export const createDeliverer = async (req, res) => {
-  try {
-    const newDeliverer = new Deliverer(req.body);
-    const savedDeliverer = await newDeliverer.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Deliverer created successfully",
-      deliverer: savedDeliverer,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+  if (req.query.email) {
+    filter.email = { $regex: req.query.email, $options: "i" };
   }
-};
 
-//  Update Deliverer
-export const updateDeliverer = async (req, res) => {
-  try {
-    const id = req.params.id;
-    const updatedDeliverer = await Deliverer.findByIdAndUpdate(id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+  const deliverers = await Deliverer.find(filter)
+    .skip(skip)
+    .limit(limit)
+    .sort({ createdAt: -1 });
 
-    if (!updatedDeliverer) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Deliverer not found" });
-    }
+  const totalDeliverers = await Deliverer.countDocuments(filter);
 
-    res.status(200).json({
-      success: true,
-      message: "Deliverer updated successfully",
-      deliverer: updatedDeliverer,
-    });
-  } catch (error) {
-    if (error.name === "CastError") {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid Deliverer ID Format" });
-    }
-    res.status(500).json({ success: false, error: error.message });
+  res.status(200).json({
+    success: true,
+    message: "Deliverers fetched successfully",
+    page,
+    limit,
+    totalDeliverers,
+    totalPages: Math.ceil(totalDeliverers / limit),
+    deliverers,
+  });
+});
+
+//   Get deliverer by ID
+//   GET /api/deliverers/:id
+//   Private/Admin
+export const getDelivererById = catchAsync(async (req, res, next) => {
+  const deliverer = await Deliverer.findById(req.params.id);
+
+  if (!deliverer) {
+    return next(new AppError("Deliverer not found", 404));
   }
-};
 
-//  Delete Delivery Person
-export const deleteDeliverer = async (req, res) => {
-  try {
-    const deliverer = await Deliverer.findByIdAndDelete(req.params.id);
+  res.status(200).json({
+    success: true,
+    deliverer,
+  });
+});
 
-    if (!deliverer) {
-      return res.status(404).json({
-        success: false,
-        message: "Deliverer not found or already deleted",
-      });
-    }
+//   Create deliverer (Admin only)
+//   POST /api/deliverers
+//   Private/Admin
+export const createDeliverer = catchAsync(async (req, res, next) => {
+  const { name, phone_no, email, vehicle_no, vehicle_type, address } = req.body;
 
-    res.status(200).json({
-      success: true,
-      message: "Deliverer deleted successfully",
-    });
-  } catch (error) {
-    if (error.name === "CastError") {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid Deliverer ID format",
-      });
-    }
-    res.status(500).json({
-      success: false,
-      message: "Failed to delete deliverer",
-      error: error.message,
-    });
+  // Validation
+  if (!name || !phone_no) {
+    return next(new AppError("Please provide at least name and phone_no", 400));
   }
-};
+
+  const deliverer = await Deliverer.create({
+    name,
+    phone_no,
+    email: email || "",
+    vehicle_no: vehicle_no || "",
+    vehicle_type: vehicle_type || "",
+    address: address || "",
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Deliverer created successfully",
+    deliverer,
+  });
+});
+
+//   Update deliverer (Admin only)
+//   PUT /api/deliverers/:id
+//   Private/Admin
+export const updateDeliverer = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  const deliverer = await Deliverer.findByIdAndUpdate(id, req.body, {
+    new: true,
+    runValidators: true,
+  });
+
+  if (!deliverer) {
+    return next(new AppError("Deliverer not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Deliverer updated successfully",
+    deliverer,
+  });
+});
+
+//   Delete deliverer (Admin only)
+//   DELETE /api/deliverers/:id
+//   Private/Admin
+export const deleteDeliverer = catchAsync(async (req, res, next) => {
+  const deliverer = await Deliverer.findByIdAndDelete(req.params.id);
+
+  if (!deliverer) {
+    return next(new AppError("Deliverer not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Deliverer deleted successfully",
+  });
+});
