@@ -10,9 +10,10 @@ import {
   rejectSeller,
   getPendingSellers,
   getMe,
+  logout,
 } from "../controllers/authController.js";
-import { protect } from "../middleware/auth.js";
-import { adminOnly } from "../middleware/roleMiddleware.js";
+import { verifyToken } from "../middleware/auth.js";
+import { verifyRole } from "../middleware/roleMiddleware.js";
 
 const authRouter = express.Router();
 
@@ -25,11 +26,12 @@ authRouter.post("/register/admin", registerAdmin);
 authRouter.post("/login/admin", loginAdmin);
 
 // Protected routes
-authRouter.get("/me", protect, getMe);
+authRouter.get("/me", verifyToken, getMe);
+authRouter.post("/logout", verifyToken, logout);
 
 // Admin only routes
-authRouter.get("/sellers/pending", protect, adminOnly, getPendingSellers);
-authRouter.put("/seller/approve/:id", protect, adminOnly, approveSeller);
-authRouter.put("/seller/reject/:id", protect, adminOnly, rejectSeller);
+authRouter.get("/sellers/pending", verifyToken, verifyRole("admin"), getPendingSellers);
+authRouter.put("/seller/approve/:id", verifyToken, verifyRole("admin"), approveSeller);
+authRouter.put("/seller/reject/:id", verifyToken, verifyRole("admin"), rejectSeller);
 
 export default authRouter;
