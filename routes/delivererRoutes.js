@@ -1,19 +1,21 @@
 import express from "express";
-
 import {
-  getAllDeliverer,
+  getAllDeliverers,
   getDelivererById,
   createDeliverer,
   updateDeliverer,
   deleteDeliverer,
 } from "../controllers/delivererController.js";
+import { verifyToken } from "../middleware/auth.js";
+import { verifyRole } from "../middleware/roleMiddleware.js";
 
 const delivererRouter = express.Router();
 
-delivererRouter.get("/", getAllDeliverer);
-delivererRouter.get("/:id", getDelivererById);
-delivererRouter.post("/", createDeliverer);
-delivererRouter.put("/:id", updateDeliverer);
-delivererRouter.delete("/:id", deleteDeliverer);
+// All deliverer routes require admin authentication
+delivererRouter.get("/", verifyToken, verifyRole("admin"), getAllDeliverers);
+delivererRouter.get("/:id", verifyToken, verifyRole("admin"), getDelivererById);
+delivererRouter.post("/", verifyToken, verifyRole("admin"), createDeliverer);
+delivererRouter.put("/:id", verifyToken, verifyRole("admin"), updateDeliverer);
+delivererRouter.delete("/:id", verifyToken, verifyRole("admin"), deleteDeliverer);
 
 export default delivererRouter;
