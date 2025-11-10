@@ -1,19 +1,19 @@
-import express from "express"
+import express from "express";
+import {
+  getAllCustomers,
+  getCustomerById,
+  updateCustomer,
+  deleteCustomer,
+} from "../controllers/customerController.js";
+import { verifyToken } from "../middleware/auth.js";
+import { verifyRole } from "../middleware/roleMiddleware.js";
 
-import{
-    getAllCustomers,
-    getCustomerById,
-    createCustomer,
-    updateCustomer,
-    deleteCustomer
-} from "../controllers/customerController.js"
+const customerRouter = express.Router();
 
-const  customerRouter = express.Router();
+// All customer routes require authentication
+customerRouter.get("/", verifyToken, verifyRole(["admin", "customer"]), getAllCustomers);
+customerRouter.get("/:id", verifyToken, verifyRole(["admin", "customer"]), getCustomerById);
+customerRouter.put("/:id", verifyToken, verifyRole(["admin", "customer"]), updateCustomer);
+customerRouter.delete("/:id", verifyToken, verifyRole("admin"), deleteCustomer);
 
- customerRouter.get("/", getAllCustomers);
- customerRouter.get("/:id", getCustomerById);
- customerRouter.post("/", createCustomer);
- customerRouter.put("/:id", updateCustomer);
- customerRouter.delete("/:id", deleteCustomer);
-
-export default  customerRouter;
+export default customerRouter;
