@@ -29,11 +29,14 @@ const PORT = process.env.PORT;
 
 connectDB();
 
-// Authentication routes
+// Authentication routes - Unified system
+// Register and login at /api/users
+app.use("/api/users", authRouter);
+// Protected routes and admin functions at /api/auth (backward compatibility)
 app.use("/api/auth", authRouter);
 
 // Entity routes
-app.use("/api/users", userRouter);
+app.use("/api/admin/users", userRouter); // User management routes (admin only)
 app.use("/api/admin", adminRouter);
 app.use("/api/sellers", sellerRouter);
 app.use("/api/customers", customerRouter);

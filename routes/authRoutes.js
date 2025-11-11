@@ -1,11 +1,7 @@
 import express from "express";
 import {
-  registerCustomer,
-  loginCustomer,
-  registerSeller,
-  loginSeller,
-  registerAdmin,
-  loginAdmin,
+  register,
+  login,
   approveSeller,
   rejectSeller,
   getPendingSellers,
@@ -17,13 +13,9 @@ import { verifyRole } from "../middleware/roleMiddleware.js";
 
 const authRouter = express.Router();
 
-// Public routes
-authRouter.post("/register/customer", registerCustomer);
-authRouter.post("/login/customer", loginCustomer);
-authRouter.post("/register/seller", registerSeller);
-authRouter.post("/login/seller", loginSeller);
-authRouter.post("/register/admin", registerAdmin);
-authRouter.post("/login/admin", loginAdmin);
+// Public routes - Unified authentication
+authRouter.post("/register", register);
+authRouter.post("/login", login);
 
 // Protected routes
 authRouter.get("/me", verifyToken, getMe);

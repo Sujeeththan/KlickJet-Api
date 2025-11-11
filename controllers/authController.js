@@ -43,249 +43,315 @@ const sendTokenResponse = (user, role, statusCode, res, message) => {
   });
 };
 
-//     Register Customer
-//     POST /api/auth/register/customer
-//     Public
-export const registerCustomer = catchAsync(async (req, res, next) => {
-  const { name, email, password, phone_no, address } = req.body;
+// Validation helper function
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
 
-  // Validation
-  if (!name || !email || !password || !phone_no) {
-    return next(new AppError("Please provide all required fields (name, email, password, phone_no)", 400));
+const validatePhone = (phone) => {
+  const phoneRegex = /^[0-9]{10,15}$/;
+  return phoneRegex.test(phone);
+};
+
+// @desc    Unified User Registration
+// @route   POST /api/users/register
+// @access  Public
+export const register = catchAsync(async (req, res, next) => {
+  const { role, name, email, password, phone_no, address, shopName } = req.body;
+
+  // Validate role
+  if (!role) {
+    return next(
+      new AppError(
+        "Role is required. Must be one of: admin, seller, customer",
+        400
+      )
+    );
   }
 
-  // Check if email already exists
-  const existingCustomer = await Customer.findOne({ email });
-  if (existingCustomer) {
-    return next(new AppError("Email already registered", 400));
+  if (!["admin", "seller", "customer"].includes(role)) {
+    return next(
+      new AppError("Invalid role. Must be one of: admin, seller, customer", 400)
+    );
   }
 
-  // Check if email exists in User or Seller models
+  // Validate common fields
+  const errors = [];
+
+  if (!name) {
+    errors.push("Name is required");
+  } else if (name.trim().length < 2) {
+    errors.push("Name must be at least 2 characters long");
+  } else if (name.trim().length > 50) {
+    errors.push("Name cannot exceed 50 characters");
+  }
+
+  if (!email) {
+    errors.push("Email is required");
+  } else if (!validateEmail(email)) {
+    errors.push("Please provide a valid email address");
+  }
+
+  if (!password) {
+    errors.push("Password is required");
+  } else if (password.length < 8) {
+    errors.push("Password must be at least 8 characters long");
+  }
+
+  // Role-specific validations
+  if (role === "customer") {
+    if (!phone_no) {
+      errors.push("Phone number is required for customers");
+    } else if (!validatePhone(phone_no)) {
+      errors.push("Please provide a valid phone number (10-15 digits)");
+    }
+  }
+
+  if (role === "seller") {
+    if (!shopName) {
+      errors.push("Shop name is required for sellers");
+    } else if (shopName.trim().length < 2) {
+      errors.push("Shop name must be at least 2 characters long");
+    } else if (shopName.trim().length > 100) {
+      errors.push("Shop name cannot exceed 100 characters");
+    }
+
+    if (!phone_no) {
+      errors.push("Phone number is required for sellers");
+    } else if (!validatePhone(phone_no)) {
+      errors.push("Please provide a valid phone number (10-15 digits)");
+    }
+
+    if (!address) {
+      errors.push("Address is required for sellers");
+    } else if (address.trim().length === 0) {
+      errors.push("Address cannot be empty");
+    }
+  }
+
+  // Return all validation errors at once
+  if (errors.length > 0) {
+    return next(new AppError(errors.join(". "), 400));
+  }
+
+  // Check if email already exists across all models
   const existingUser = await User.findOne({ email });
+  const existingCustomer = await Customer.findOne({ email });
   const existingSeller = await Seller.findOne({ email });
-  if (existingUser || existingSeller) {
-    return next(new AppError("Email already registered", 400));
+
+  if (existingUser || existingCustomer || existingSeller) {
+    return next(
+      new AppError(
+        "Email already registered. Please use a different email address",
+        400
+      )
+    );
   }
 
-  // Password validation
-  if (password.length < 8) {
-    return next(new AppError("Password must be at least 8 characters long", 400));
+  // Create user based on role
+  let user;
+  let userRole = role;
+
+  try {
+    if (role === "admin") {
+      user = await User.create({
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        password,
+        role: "admin",
+      });
+    } else if (role === "customer") {
+      user = await Customer.create({
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        password,
+        phone_no: phone_no.trim(),
+        address: address ? address.trim() : "",
+      });
+      userRole = "customer";
+    } else if (role === "seller") {
+      user = await Seller.create({
+        name: name.trim(),
+        shopName: shopName.trim(),
+        email: email.toLowerCase().trim(),
+        password,
+        phone_no: phone_no.trim(),
+        address: address.trim(),
+        status: "pending",
+      });
+      userRole = "seller";
+    }
+
+    // For sellers, return different response (pending approval)
+    if (role === "seller") {
+      return res.status(201).json({
+        success: true,
+        message:
+          "Seller registration successful. Your account is pending admin approval.",
+        user: {
+          id: user._id,
+          name: user.name,
+          shopName: user.shopName,
+          email: user.email,
+          role: "seller",
+          status: user.status,
+        },
+      });
+    }
+
+    // For admin and customer, return token
+    sendTokenResponse(
+      user,
+      userRole,
+      201,
+      res,
+      `${role.charAt(0).toUpperCase() + role.slice(1)} registered successfully`
+    );
+  } catch (error) {
+    // Handle duplicate key errors (MongoDB)
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return next(
+        new AppError(
+          `${field.charAt(0).toUpperCase() + field.slice(1)} already exists`,
+          400
+        )
+      );
+    }
+
+    // Handle validation errors
+    if (error.name === "ValidationError") {
+      const validationErrors = Object.values(error.errors).map(
+        (err) => err.message
+      );
+      return next(new AppError(validationErrors.join(". "), 400));
+    }
+
+    return next(error);
   }
-
-  // Create customer
-  const customer = await Customer.create({
-    name,
-    email,
-    password,
-    phone_no,
-    address: address || "",
-  });
-
-  // Generate token and send response
-  sendTokenResponse(customer, "customer", 201, res, "Customer registered successfully");
 });
 
-//    Login Customer
-//    POST /api/auth/login/customer
-//    Public
-export const loginCustomer = catchAsync(async (req, res, next) => {
-  const { email, password } = req.body;
+// @desc    Unified User Login
+// @route   POST /api/users/login
+// @access  Public
+export const login = catchAsync(async (req, res, next) => {
+  const { email, password, role } = req.body;
 
-  // Validation
-  if (!email || !password) {
-    return next(new AppError("Please provide email and password", 400));
+  // Validate required fields
+  const errors = [];
+
+  if (!email) {
+    errors.push("Email is required");
+  } else if (!validateEmail(email)) {
+    errors.push("Please provide a valid email address");
   }
 
-  // Find customer with password field
-  const customer = await Customer.findOne({ email }).select("+password");
-
-  if (!customer) {
-    return next(new AppError("Invalid credentials", 401));
+  if (!password) {
+    errors.push("Password is required");
   }
 
-  // Check if customer is active
-  if (!customer.isActive) {
-    return next(new AppError("Account is deactivated", 401));
+  if (errors.length > 0) {
+    return next(new AppError(errors.join(". "), 400));
+  }
+
+  // Find user based on role (if provided) or search all models
+  let user;
+  let userRole;
+
+  if (role) {
+    // If role is provided, search in specific model
+    if (role === "admin") {
+      user = await User.findOne({
+        email: email.toLowerCase().trim(),
+        role: "admin",
+      }).select("+password");
+      if (user) userRole = "admin";
+    } else if (role === "customer") {
+      user = await Customer.findOne({
+        email: email.toLowerCase().trim(),
+      }).select("+password");
+      if (user) userRole = "customer";
+    } else if (role === "seller") {
+      user = await Seller.findOne({ email: email.toLowerCase().trim() }).select(
+        "+password"
+      );
+      if (user) userRole = "seller";
+    } else {
+      return next(
+        new AppError(
+          "Invalid role. Must be one of: admin, seller, customer",
+          400
+        )
+      );
+    }
+  } else {
+    // If role is not provided, search all models
+    user = await User.findOne({ email: email.toLowerCase().trim() }).select(
+      "+password"
+    );
+    if (user) {
+      userRole = user.role || "admin";
+    } else {
+      user = await Customer.findOne({
+        email: email.toLowerCase().trim(),
+      }).select("+password");
+      if (user) {
+        userRole = "customer";
+      } else {
+        user = await Seller.findOne({
+          email: email.toLowerCase().trim(),
+        }).select("+password");
+        if (user) {
+          userRole = "seller";
+        }
+      }
+    }
+  }
+
+  // Check if user exists
+  if (!user) {
+    return next(new AppError("Invalid email or password", 401));
+  }
+
+  // Check if user is active
+  if (!user.isActive) {
+    return next(
+      new AppError("Account is deactivated. Please contact administrator", 401)
+    );
+  }
+
+  // For sellers, check if approved
+  if (userRole === "seller" && user.status !== "approved") {
+    return next(
+      new AppError(
+        "Your seller account is pending admin approval. Please wait for approval",
+        403
+      )
+    );
   }
 
   // Check password
-  const isMatch = await customer.comparePassword(password);
+  const isMatch = await user.comparePassword(password);
   if (!isMatch) {
-    return next(new AppError("Invalid credentials", 401));
+    return next(new AppError("Invalid email or password", 401));
   }
 
   // Generate token and send response
-  sendTokenResponse(customer, "customer", 200, res, "Customer logged in successfully");
+  sendTokenResponse(
+    user,
+    userRole,
+    200,
+    res,
+    `${
+      userRole.charAt(0).toUpperCase() + userRole.slice(1)
+    } logged in successfully`
+  );
 });
 
-//    Register Seller (Pending Status)
-//    POST /api/auth/register/seller
-//    Public
-export const registerSeller = catchAsync(async (req, res, next) => {
-  const { name, shopName, email, password, phone_no, address } = req.body;
-
-  // Validation
-  if (!name || !shopName || !email || !password || !phone_no || !address) {
-    return next(new AppError("Please provide all required fields (name, shopName, email, password, phone_no, address)", 400));
-  }
-
-  // Check if email already exists
-  const existingSeller = await Seller.findOne({ email });
-  if (existingSeller) {
-    return next(new AppError("Email already registered", 400));
-  }
-
-  // Check if email exists in User or Customer models
-  const existingUser = await User.findOne({ email });
-  const existingCustomer = await Customer.findOne({ email });
-  if (existingUser || existingCustomer) {
-    return next(new AppError("Email already registered", 400));
-  }
-
-  // Password validation
-  if (password.length < 8) {
-    return next(new AppError("Password must be at least 8 characters long", 400));
-  }
-
-  // Create seller with pending status
-  const seller = await Seller.create({
-    name,
-    shopName,
-    email,
-    password,
-    phone_no,
-    address,
-    status: "pending",
-  });
-
-  res.status(201).json({
-    success: true,
-    message: "Seller registration successful. Your account is pending admin approval.",
-    seller: {
-      id: seller._id,
-      name: seller.name,
-      shopName: seller.shopName,
-      email: seller.email,
-      status: seller.status,
-    },
-  });
-});
-
-//    Login Seller (Only if Approved)
-//    POST /api/auth/login/seller
-//    Public
-export const loginSeller = catchAsync(async (req, res, next) => {
-  const { email, password } = req.body;
-
-  // Validation
-  if (!email || !password) {
-    return next(new AppError("Please provide email and password", 400));
-  }
-
-  // Find seller with password field
-  const seller = await Seller.findOne({ email }).select("+password");
-
-  if (!seller) {
-    return next(new AppError("Invalid credentials", 401));
-  }
-
-  // Check if seller is approved
-  if (seller.status !== "approved") {
-    return next(new AppError("Your account is pending admin approval. Please wait for approval.", 403));
-  }
-
-  // Check if seller is active
-  if (!seller.isActive) {
-    return next(new AppError("Account is deactivated", 401));
-  }
-
-  // Check password
-  const isMatch = await seller.comparePassword(password);
-  if (!isMatch) {
-    return next(new AppError("Invalid credentials", 401));
-  }
-
-  // Generate token and send response
-  sendTokenResponse(seller, "seller", 200, res, "Seller logged in successfully");
-});
-
-//    Register Admin (Usually done manually or via seed)
-//    POST /api/auth/register/admin
-//    Public (In production, this should be protected)
-export const registerAdmin = catchAsync(async (req, res, next) => {
-  const { name, email, password } = req.body;
-
-  // Validation
-  if (!name || !email || !password) {
-    return next(new AppError("Please provide all required fields (name, email, password)", 400));
-  }
-
-  // Check if email already exists
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    return next(new AppError("Email already registered", 400));
-  }
-
-  // Check if email exists in Customer or Seller models
-  const existingCustomer = await Customer.findOne({ email });
-  const existingSeller = await Seller.findOne({ email });
-  if (existingCustomer || existingSeller) {
-    return next(new AppError("Email already registered", 400));
-  }
-
-  // Password validation
-  if (password.length < 8) {
-    return next(new AppError("Password must be at least 8 characters long", 400));
-  }
-
-  // Create admin user
-  const admin = await User.create({
-    name,
-    email,
-    password,
-    role: "admin",
-  });
-
-  // Generate token and send response
-  sendTokenResponse(admin, "admin", 201, res, "Admin registered successfully");
-});
-
-//    Login Admin
-//    POST /api/auth/login/admin
-//    Public
-export const loginAdmin = catchAsync(async (req, res, next) => {
-  const { email, password } = req.body;
-
-  // Validation
-  if (!email || !password) {
-    return next(new AppError("Please provide email and password", 400));
-  }
-
-  // Find admin user with password field
-  const admin = await User.findOne({ email, role: "admin" }).select("+password");
-
-  if (!admin) {
-    return next(new AppError("Invalid credentials", 401));
-  }
-
-  // Check if admin is active
-  if (!admin.isActive) {
-    return next(new AppError("Account is deactivated", 401));
-  }
-
-  // Check password
-  const isMatch = await admin.comparePassword(password);
-  if (!isMatch) {
-    return next(new AppError("Invalid credentials", 401));
-  }
-
-  // Generate token and send response
-  sendTokenResponse(admin, "admin", 200, res, "Admin logged in successfully");
-});
-
-//    Approve Seller (Admin Only)
-//    PUT /api/auth/seller/approve/:id
-//    Private/Admin
+// @desc    Approve Seller (Admin Only)
+// @route   PUT /api/auth/seller/approve/:id
+// @access  Private/Admin
 export const approveSeller = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
@@ -300,7 +366,7 @@ export const approveSeller = catchAsync(async (req, res, next) => {
   }
 
   seller.status = "approved";
-  seller.approvedBy = req.user.id; // Admin ID from auth middleware
+  seller.approvedBy = req.user.id;
   seller.approvedAt = new Date();
 
   await seller.save();
@@ -319,9 +385,9 @@ export const approveSeller = catchAsync(async (req, res, next) => {
   });
 });
 
-//   Reject Seller (Admin Only)
-//   PUT /api/auth/seller/reject/:id
-//   Private/Admin
+// @desc    Reject Seller (Admin Only)
+// @route   PUT /api/auth/seller/reject/:id
+// @access  Private/Admin
 export const rejectSeller = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
@@ -329,6 +395,10 @@ export const rejectSeller = catchAsync(async (req, res, next) => {
 
   if (!seller) {
     return next(new AppError("Seller not found", 404));
+  }
+
+  if (seller.status === "rejected") {
+    return next(new AppError("Seller is already rejected", 400));
   }
 
   seller.status = "rejected";
@@ -347,11 +417,13 @@ export const rejectSeller = catchAsync(async (req, res, next) => {
   });
 });
 
-//   Get Pending Sellers (Admin Only)
-//   GET /api/auth/sellers/pending
-//   Private/Admin
+// @desc    Get Pending Sellers (Admin Only)
+// @route   GET /api/auth/sellers/pending
+// @access  Private/Admin
 export const getPendingSellers = catchAsync(async (req, res, next) => {
-  const sellers = await Seller.find({ status: "pending" }).select("-password");
+  const sellers = await Seller.find({ status: "pending" })
+    .select("-password")
+    .sort({ createdAt: -1 });
 
   res.status(200).json({
     success: true,
@@ -360,9 +432,9 @@ export const getPendingSellers = catchAsync(async (req, res, next) => {
   });
 });
 
-//   Get Current User
-//   GET /api/auth/me
-//   Private
+// @desc    Get Current User
+// @route   GET /api/auth/me
+// @access  Private
 export const getMe = catchAsync(async (req, res, next) => {
   let user;
 
@@ -401,18 +473,19 @@ export const getMe = catchAsync(async (req, res, next) => {
   });
 });
 
-//   Logout User
-//   POST /api/auth/logout
-//   Private
+// @desc    Logout User
+// @route   POST /api/auth/logout
+// @access  Private
 export const logout = catchAsync(async (req, res, next) => {
-  // Get token from header
   let token;
-  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
     token = req.headers.authorization.split(" ")[1];
   }
 
   if (token) {
-    // Add token to blacklist
     addToBlacklist(token);
   }
 
@@ -421,4 +494,3 @@ export const logout = catchAsync(async (req, res, next) => {
     message: "Logged out successfully",
   });
 });
-
