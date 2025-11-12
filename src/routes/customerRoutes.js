@@ -11,7 +11,7 @@ import { verifyRole } from "../middleware/roleMiddleware.js";
 const customerRouter = express.Router();
 
 // All routes require authentication
-customerRouter.get("/", verifyToken, verifyRole("admin"), getAllCustomers);
+customerRouter.get("/", verifyToken, verifyRole(["seller","admin"]), getAllCustomers);
 customerRouter.get(
   "/:id",
   verifyToken,
