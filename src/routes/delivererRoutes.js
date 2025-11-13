@@ -13,8 +13,8 @@ const delivererRouter = express.Router();
 // All routes require authentication
 delivererRouter.get("/", verifyToken, verifyRole(["admin", "seller"]), getAllDeliverers);
 delivererRouter.get("/:id", verifyToken, verifyRole(["admin","seller", "deliverer"]), getDelivererById);
-delivererRouter.put("/:id", verifyToken, verifyRole(["admin","seller" ,"deliverer"]), updateDeliverer);
-delivererRouter.delete("/:id", verifyToken, verifyRole(["admin", "seller"]), deleteDeliverer);
+delivererRouter.put("/:id", verifyToken, verifyRole( "deliverer"), updateDeliverer);
+delivererRouter.delete("/:id", verifyToken, verifyRole("deliverer"), deleteDeliverer);
 
 export default delivererRouter;
 

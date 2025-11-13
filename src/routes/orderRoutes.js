@@ -16,7 +16,7 @@ orderRouter.get("/", verifyToken, verifyRole("seller"), getAllOrders);
 orderRouter.get("/:id", verifyToken, verifyRole( "seller"), getOrderById);
 orderRouter.post("/", verifyToken, verifyRole("customer"), createOrder);
 orderRouter.put("/:id", verifyToken, verifyRole("seller"), updateOrder);
-orderRouter.delete("/:id", verifyToken, verifyRole("admin"), deleteOrder);
+orderRouter.delete("/:id", verifyToken, verifyRole("seller"), deleteOrder);
 
 export default orderRouter;
 

@@ -15,7 +15,7 @@ const deliveryRouter = express.Router();
 deliveryRouter.get("/", verifyToken, verifyRole(["admin", "seller", "deliverer"]), getAllDeliveries);
 deliveryRouter.get("/:id", verifyToken, verifyRole(["seller", "customer", "deliverer"]), getDeliveryById);
 deliveryRouter.post("/", verifyToken, verifyRole(["seller", "deliverer"]), createDelivery);
-deliveryRouter.put("/:id", verifyToken, verifyRole(["seller", "deliverer"]), updateDelivery);
+deliveryRouter.put("/:id", verifyToken, verifyRole( "deliverer"), updateDelivery);
 deliveryRouter.delete("/:id", verifyToken, verifyRole(["seller", "deliverer"]), deleteDelivery);
 
 export default deliveryRouter;

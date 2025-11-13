@@ -15,7 +15,7 @@ customerRouter.get("/", verifyToken, verifyRole(["seller","admin"]), getAllCusto
 customerRouter.get(
   "/:id",
   verifyToken,
-  verifyRole("customer"),
+  verifyRole(["seller","admin", "customer"]),
   getCustomerById
 );
 customerRouter.put(
