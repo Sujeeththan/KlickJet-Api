@@ -1,49 +1,48 @@
 import Customer from "../models/Customer.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { catchAsync } from "../middleware/errorHandler.js";
+import { buildQuery, buildPaginationMeta } from "../utils/queryBuilder.js";
 
 // @desc    Get all customers
 // @route   GET /api/customers
 // @access  Private/Admin or Customer (own profile)
+// @query   search, name, email, phone_no, isActive, sort, sortOrder, page, limit
 export const getAllCustomers = catchAsync(async (req, res, next) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  const skip = (page - 1) * limit;
+  // Build query using the query builder utility
+  const { filter, sort, pagination } = buildQuery({
+    query: req.query,
+    searchFields: ["name", "email", "phone_no", "address"], // Search across multiple fields
+    filterFields: {
+      name: "string",
+      email: "string",
+      phone_no: "string",
+      isActive: "boolean",
+    },
+    roleBasedFilters: {
+      customer: { _id: req.user.id }, // Customers only see their own profile
+    },
+    user: req.user,
+  });
 
-  const filter = {};
-
-  // Customers can only see their own profile
-  if (req.user.role === "customer") {
-    filter._id = req.user.id;
-  }
-
-  if (req.query.name) {
-    filter.name = { $regex: req.query.name, $options: "i" };
-  }
-
-  if (req.query.email) {
-    filter.email = { $regex: req.query.email, $options: "i" };
-  }
-
-  if (req.query.phone_no) {
-    filter.phone_no = { $regex: req.query.phone_no, $options: "i" };
-  }
-
+  // Execute query with pagination
+  const totalCustomers = await Customer.countDocuments(filter);
   const customers = await Customer.find(filter)
     .select("-password")
-    .skip(skip)
-    .limit(limit)
-    .sort({ createdAt: -1 });
+    .skip(pagination.skip)
+    .limit(pagination.limit)
+    .sort(sort);
 
-  const totalCustomers = await Customer.countDocuments(filter);
+  // Build pagination metadata
+  const paginationMeta = buildPaginationMeta(
+    totalCustomers,
+    pagination.page,
+    pagination.limit
+  );
 
   res.status(200).json({
     success: true,
     message: "Customers fetched successfully",
-    page,
-    limit,
-    totalCustomers,
-    totalPages: Math.ceil(totalCustomers / limit),
+    ...paginationMeta,
     customers,
   });
 });
@@ -91,14 +90,16 @@ export const updateCustomer = catchAsync(async (req, res, next) => {
 
   // Don't allow updating password through this route
   if (req.body.password) {
-    return next(new AppError("Password cannot be updated through this route", 400));
+    return next(
+      new AppError("Password cannot be updated through this route", 400)
+    );
   }
 
   // Check if email is being updated and if it already exists
   if (req.body.email && req.body.email !== customer.email) {
-    const existingCustomer = await Customer.findOne({ 
-      email: req.body.email.toLowerCase().trim(), 
-      _id: { $ne: id } 
+    const existingCustomer = await Customer.findOne({
+      email: req.body.email.toLowerCase().trim(),
+      _id: { $ne: id },
     });
     if (existingCustomer) {
       return next(new AppError("Email already registered", 400));
@@ -106,8 +107,11 @@ export const updateCustomer = catchAsync(async (req, res, next) => {
   }
 
   const updatedCustomer = await Customer.findByIdAndUpdate(
-    id, 
-    { ...req.body, email: req.body.email ? req.body.email.toLowerCase().trim() : undefined },
+    id,
+    {
+      ...req.body,
+      email: req.body.email ? req.body.email.toLowerCase().trim() : undefined,
+    },
     {
       new: true,
       runValidators: true,
@@ -136,5 +140,3 @@ export const deleteCustomer = catchAsync(async (req, res, next) => {
     message: "Customer deleted successfully",
   });
 });
-
-

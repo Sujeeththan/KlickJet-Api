@@ -1,54 +1,50 @@
 import Seller from "../models/Seller.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { catchAsync } from "../middleware/errorHandler.js";
+import { buildQuery, buildPaginationMeta } from "../utils/queryBuilder.js";
 
 // @desc    Get all sellers
 // @route   GET /api/sellers
 // @access  Private/Admin or Seller (own profile)
+// @query   search, status, name, email, shopName, isActive, sort, sortOrder, page, limit
 export const getAllSellers = catchAsync(async (req, res, next) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  const skip = (page - 1) * limit;
+  // Build query using the query builder utility
+  const { filter, sort, pagination } = buildQuery({
+    query: req.query,
+    searchFields: ["name", "email", "shopName", "phone_no", "address"], // Search across multiple fields
+    filterFields: {
+      status: "string",
+      name: "string",
+      email: "string",
+      shopName: "string",
+      isActive: "boolean",
+    },
+    roleBasedFilters: {
+      seller: { _id: req.user.id }, // Sellers only see their own profile
+    },
+    user: req.user,
+  });
 
-  const filter = {};
-
-  // Sellers can only see their own profile
-  if (req.user.role === "seller") {
-    filter._id = req.user.id;
-  }
-
-  if (req.query.status) {
-    filter.status = req.query.status;
-  }
-
-  if (req.query.name) {
-    filter.name = { $regex: req.query.name, $options: "i" };
-  }
-
-  if (req.query.email) {
-    filter.email = { $regex: req.query.email, $options: "i" };
-  }
-
-  if (req.query.shopName) {
-    filter.shopName = { $regex: req.query.shopName, $options: "i" };
-  }
-
+  // Execute query with pagination
+  const totalSellers = await Seller.countDocuments(filter);
   const sellers = await Seller.find(filter)
     .select("-password")
-    .skip(skip)
-    .limit(limit)
-    .sort({ createdAt: -1 })
+    .skip(pagination.skip)
+    .limit(pagination.limit)
+    .sort(sort)
     .populate("approvedBy", "name email");
 
-  const totalSellers = await Seller.countDocuments(filter);
+  // Build pagination metadata
+  const paginationMeta = buildPaginationMeta(
+    totalSellers,
+    pagination.page,
+    pagination.limit
+  );
 
   res.status(200).json({
     success: true,
     message: "Sellers fetched successfully",
-    page,
-    limit,
-    totalSellers,
-    totalPages: Math.ceil(totalSellers / limit),
+    ...paginationMeta,
     sellers,
   });
 });

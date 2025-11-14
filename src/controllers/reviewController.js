@@ -3,50 +3,56 @@ import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { catchAsync } from "../middleware/errorHandler.js";
+import { buildQuery, buildPaginationMeta } from "../utils/queryBuilder.js";
 
 // @desc    Get all reviews
 // @route   GET /api/reviews
 // @access  Public (anyone can view reviews)
+// @query   search, product_id, order_id, customer_id, rating_min, rating_max, my_reviews, sort, sortOrder, page, limit
 export const getAllReviews = catchAsync(async (req, res, next) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  const skip = (page - 1) * limit;
+  // Build query using the query builder utility
+  const { filter, sort, pagination } = buildQuery({
+    query: req.query,
+    searchFields: ["comment"], // Search in review comments
+    filterFields: {
+      product_id: "objectId",
+      order_id: "objectId",
+      customer_id: "objectId",
+      rating: "numberRange", // Supports rating_min and rating_max
+    },
+    roleBasedFilters: {
+      // If my_reviews is true, filter by customer_id
+      customer: req.query.my_reviews === "true" ? { customer_id: req.user?.id } : {},
+    },
+    user: req.user || null,
+  });
 
-  const filter = {};
-
-  // Filter by product
-  if (req.query.product_id) {
-    filter.product_id = req.query.product_id;
+  // Handle my_reviews filter for customers
+  if (req.user && req.user.role === "customer" && req.query.my_reviews === "true") {
+    filter.customer_id = req.user.id;
   }
 
-  // Filter by order
-  if (req.query.order_id) {
-    filter.order_id = req.query.order_id;
-  }
-
-  // Filter by customer (if authenticated customer)
-  if (req.user && req.user.role === "customer") {
-    if (req.query.my_reviews === "true") {
-      filter.customer_id = req.user.id;
-    }
-  }
-
+  // Execute query with pagination
   const totalReviews = await Review.countDocuments(filter);
   const reviews = await Review.find(filter)
-    .skip(skip)
-    .limit(limit)
+    .skip(pagination.skip)
+    .limit(pagination.limit)
     .populate("customer_id", "name email")
     .populate("product_id", "name")
     .populate("order_id", "status")
-    .sort({ createdAt: -1 });
+    .sort(sort);
+
+  // Build pagination metadata
+  const paginationMeta = buildPaginationMeta(
+    totalReviews,
+    pagination.page,
+    pagination.limit
+  );
 
   res.status(200).json({
     success: true,
-    page,
-    limit,
     message: "Reviews fetched successfully",
-    totalReviews,
-    totalPages: Math.ceil(totalReviews / limit),
+    ...paginationMeta,
     reviews,
   });
 });

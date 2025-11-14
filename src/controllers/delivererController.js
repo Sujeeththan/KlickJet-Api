@@ -1,54 +1,52 @@
 import Deliverer from "../models/Deliverer.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { catchAsync } from "../middleware/errorHandler.js";
+import { buildQuery, buildPaginationMeta } from "../utils/queryBuilder.js";
 
 // @desc    Get all deliverers
 // @route   GET /api/deliverers
 // @access  Private/Admin or Deliverer (own profile)
+// @query   search, name, email, phone_no, status, vehicle_no, vehicle_type, isActive, sort, sortOrder, page, limit
 export const getAllDeliverers = catchAsync(async (req, res, next) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  const skip = (page - 1) * limit;
+  // Build query using the query builder utility
+  const { filter, sort, pagination } = buildQuery({
+    query: req.query,
+    searchFields: ["name", "email", "phone_no", "address", "vehicle_no", "vehicle_type"], // Search across multiple fields
+    filterFields: {
+      name: "string",
+      email: "string",
+      phone_no: "string",
+      status: "string",
+      vehicle_no: "string",
+      vehicle_type: "string",
+      isActive: "boolean",
+    },
+    roleBasedFilters: {
+      deliverer: { _id: req.user.id }, // Deliverers only see their own profile
+    },
+    user: req.user,
+  });
 
-  const filter = {};
-
-  // Deliverers can only see their own profile
-  if (req.user.role === "deliverer") {
-    filter._id = req.user.id;
-  }
-
-  if (req.query.name) {
-    filter.name = { $regex: req.query.name, $options: "i" };
-  }
-
-  if (req.query.phone_no) {
-    filter.phone_no = { $regex: req.query.phone_no, $options: "i" };
-  }
-
-  if (req.query.email) {
-    filter.email = { $regex: req.query.email, $options: "i" };
-  }
-
-  if (req.query.status) {
-    filter.status = req.query.status;
-  }
-
+  // Execute query with pagination
+  const totalDeliverers = await Deliverer.countDocuments(filter);
   const deliverers = await Deliverer.find(filter)
     .select("-password")
-    .skip(skip)
-    .limit(limit)
-    .sort({ createdAt: -1 })
+    .skip(pagination.skip)
+    .limit(pagination.limit)
+    .sort(sort)
     .populate("approvedBy", "name email");
 
-  const totalDeliverers = await Deliverer.countDocuments(filter);
+  // Build pagination metadata
+  const paginationMeta = buildPaginationMeta(
+    totalDeliverers,
+    pagination.page,
+    pagination.limit
+  );
 
   res.status(200).json({
     success: true,
     message: "Deliverers fetched successfully",
-    page,
-    limit,
-    totalDeliverers,
-    totalPages: Math.ceil(totalDeliverers / limit),
+    ...paginationMeta,
     deliverers,
   });
 });

@@ -4,66 +4,123 @@ import Product from "../models/Product.js";
 import Deliverer from "../models/Deliverer.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { catchAsync } from "../middleware/errorHandler.js";
+import { buildQuery, buildPaginationMeta } from "../utils/queryBuilder.js";
 
 // @desc    Get all deliveries
 // @route   GET /api/deliveries
 // @access  Private/Admin, Seller, Customer, or Deliverer
+// @query   search, status, order_id, deliverer_id, delivered_date_from, delivered_date_to, sort, sortOrder, page, limit
 export const getAllDeliveries = catchAsync(async (req, res, next) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  const skip = (page - 1) * limit;
-
-  const filter = {};
+  // Build base query using the query builder utility
+  const { filter, sort, pagination } = buildQuery({
+    query: req.query,
+    searchFields: ["address"], // Search in delivery address
+    filterFields: {
+      status: "string",
+      order_id: "objectId",
+      deliverer_id: "objectId",
+      delivered_date: "dateRange", // Supports delivered_date_from and delivered_date_to
+    },
+    roleBasedFilters: {
+      deliverer: { deliverer_id: req.user.id }, // Deliverers only see their own deliveries
+    },
+    user: req.user,
+  });
 
   // Customers can only see deliveries for their orders
   if (req.user.role === "customer") {
     const customerOrders = await Order.find({ customer_id: req.user.id }).select("_id");
     const orderIds = customerOrders.map((o) => o._id);
-    filter.order_id = { $in: orderIds };
+    
+    if (orderIds.length === 0) {
+      // Customer has no orders, return empty result
+      return res.status(200).json({
+        success: true,
+        message: "Deliveries fetched successfully",
+        ...buildPaginationMeta(0, pagination.page, pagination.limit),
+        deliveries: [],
+      });
+    }
+    
+    // If order_id filter is already set, check if it belongs to the customer
+    if (filter.order_id) {
+      const requestedOrderId = filter.order_id;
+      if (!orderIds.some(id => id.toString() === requestedOrderId.toString())) {
+        return res.status(200).json({
+          success: true,
+          message: "Deliveries fetched successfully",
+          ...buildPaginationMeta(0, pagination.page, pagination.limit),
+          deliveries: [],
+        });
+      }
+    } else {
+      filter.order_id = { $in: orderIds };
+    }
   }
 
   // Sellers can see deliveries for orders of their products
   if (req.user.role === "seller") {
     const sellerProducts = await Product.find({ seller_id: req.user.id }).select("_id");
     const productIds = sellerProducts.map((p) => p._id);
+    
+    if (productIds.length === 0) {
+      // Seller has no products, return empty result
+      return res.status(200).json({
+        success: true,
+        message: "Deliveries fetched successfully",
+        ...buildPaginationMeta(0, pagination.page, pagination.limit),
+        deliveries: [],
+      });
+    }
+    
     const sellerOrders = await Order.find({ product_id: { $in: productIds } }).select("_id");
     const orderIds = sellerOrders.map((o) => o._id);
-    filter.order_id = { $in: orderIds };
+    
+    if (orderIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "Deliveries fetched successfully",
+        ...buildPaginationMeta(0, pagination.page, pagination.limit),
+        deliveries: [],
+      });
+    }
+    
+    // If order_id filter is already set, check if it belongs to seller's orders
+    if (filter.order_id) {
+      const requestedOrderId = filter.order_id;
+      if (!orderIds.some(id => id.toString() === requestedOrderId.toString())) {
+        return res.status(200).json({
+          success: true,
+          message: "Deliveries fetched successfully",
+          ...buildPaginationMeta(0, pagination.page, pagination.limit),
+          deliveries: [],
+        });
+      }
+    } else {
+      filter.order_id = { $in: orderIds };
+    }
   }
 
-  // Deliverers can only see their own deliveries
-  if (req.user.role === "deliverer") {
-    filter.deliverer_id = req.user.id;
-  }
-
-  if (req.query.status) {
-    filter.status = req.query.status;
-  }
-
-  if (req.query.deliverer_id) {
-    filter.deliverer_id = req.query.deliverer_id;
-  }
-
-  if (req.query.order_id) {
-    filter.order_id = req.query.order_id;
-  }
-
+  // Execute query with pagination
+  const totalDeliveries = await Delivery.countDocuments(filter);
   const deliveries = await Delivery.find(filter)
-    .skip(skip)
-    .limit(limit)
+    .skip(pagination.skip)
+    .limit(pagination.limit)
     .populate("order_id", "total_amount status")
     .populate("deliverer_id", "name phone_no")
-    .sort({ createdAt: -1 });
+    .sort(sort);
 
-  const totalDeliveries = await Delivery.countDocuments(filter);
+  // Build pagination metadata
+  const paginationMeta = buildPaginationMeta(
+    totalDeliveries,
+    pagination.page,
+    pagination.limit
+  );
 
   res.status(200).json({
     success: true,
     message: "Deliveries fetched successfully",
-    page,
-    limit,
-    totalDeliveries,
-    totalPages: Math.ceil(totalDeliveries / limit),
+    ...paginationMeta,
     deliveries,
   });
 });

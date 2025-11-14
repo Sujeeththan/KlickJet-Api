@@ -2,47 +2,84 @@ import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { catchAsync } from "../middleware/errorHandler.js";
+import { buildQuery, buildPaginationMeta } from "../utils/queryBuilder.js";
 
 // @desc    Get all orders
 // @route   GET /api/orders
 // @access  Private
+// @query   search, status, customer_id, product_id, total_amount_min, total_amount_max, order_date_from, order_date_to, sort, sortOrder, page, limit
 export const getAllOrders = catchAsync(async (req, res, next) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  const skip = (page - 1) * limit;
-
-  const filter = {};
-
-  // Customers can only see their own orders
-  if (req.user.role === "customer") {
-    filter.customer_id = req.user.id;
-  }
+  // Build base query using the query builder utility
+  const { filter, sort, pagination } = buildQuery({
+    query: req.query,
+    searchFields: [], // Orders don't have direct text fields, but we can search via populated fields
+    filterFields: {
+      status: "string",
+      customer_id: "objectId",
+      product_id: "objectId",
+      total_amount: "numberRange", // Supports total_amount_min and total_amount_max
+      order_date: "dateRange", // Supports order_date_from and order_date_to
+      quantity: "numberRange", // Supports quantity_min and quantity_max
+    },
+    roleBasedFilters: {
+      customer: { customer_id: req.user.id }, // Customers only see their own orders
+    },
+    user: req.user,
+  });
 
   // Sellers can only see orders for their products
+  // This requires a special query since we need to get product IDs first
   if (req.user.role === "seller") {
     const sellerProducts = await Product.find({ seller_id: req.user.id }).select("_id");
     const productIds = sellerProducts.map((p) => p._id);
-    filter.product_id = { $in: productIds };
+    
+    if (productIds.length === 0) {
+      // Seller has no products, return empty result
+      return res.status(200).json({
+        success: true,
+        message: "Orders fetched successfully",
+        ...buildPaginationMeta(0, pagination.page, pagination.limit),
+        orders: [],
+      });
+    }
+    
+    // If product_id filter is already set, intersect with seller's products
+    if (filter.product_id) {
+      const requestedProductId = filter.product_id;
+      // Check if the requested product belongs to the seller
+      if (!productIds.some(id => id.toString() === requestedProductId.toString())) {
+        return res.status(200).json({
+          success: true,
+          message: "Orders fetched successfully",
+          ...buildPaginationMeta(0, pagination.page, pagination.limit),
+          orders: [],
+        });
+      }
+    } else {
+      filter.product_id = { $in: productIds };
+    }
   }
 
-  // Admins can see all orders
-  // No filter needed for admins
-
+  // Execute query with pagination
   const totalOrders = await Order.countDocuments(filter);
   const orders = await Order.find(filter)
-    .skip(skip)
-    .limit(limit)
+    .skip(pagination.skip)
+    .limit(pagination.limit)
     .populate("customer_id", "name email phone_no")
     .populate("product_id", "name price")
-    .sort({ createdAt: -1 });
+    .sort(sort);
+
+  // Build pagination metadata
+  const paginationMeta = buildPaginationMeta(
+    totalOrders,
+    pagination.page,
+    pagination.limit
+  );
 
   res.status(200).json({
     success: true,
-    page,
-    limit,
     message: "Orders fetched successfully",
-    totalOrders,
-    totalPages: Math.ceil(totalOrders / limit),
+    ...paginationMeta,
     orders,
   });
 });

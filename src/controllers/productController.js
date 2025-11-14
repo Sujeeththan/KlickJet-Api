@@ -1,46 +1,48 @@
 import Product from "../models/Product.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { catchAsync } from "../middleware/errorHandler.js";
+import { buildQuery, buildPaginationMeta } from "../utils/queryBuilder.js";
 
 // @desc    Get all products
 // @route   GET /api/products
 // @access  Public (Customers can view, sellers can view their own)
+// @query   search, instock, price_min, price_max, discount_min, discount_max, seller_id, sort, sortOrder, page, limit
 export const getAllProducts = catchAsync(async (req, res, next) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  const skip = (page - 1) * limit;
+  // Build query using the query builder utility
+  const { filter, sort, pagination } = buildQuery({
+    query: req.query,
+    searchFields: ["name", "description"], // Search across name and description
+    filterFields: {
+      instock: "boolean",
+      price: "numberRange", // Supports price_min and price_max
+      discount: "numberRange", // Supports discount_min and discount_max
+      seller_id: "objectId",
+    },
+    roleBasedFilters: {
+      seller: { seller_id: req.user?.id }, // Sellers only see their own products
+    },
+    user: req.user || null,
+  });
 
-  const filter = {};
-
-  // If seller is viewing (and authenticated), only show their products
-  if (req.user && req.user.role === "seller") {
-    filter.seller_id = req.user.id;
-  }
-
-  // Search by product name
-  if (req.query.name) {
-    filter.name = { $regex: req.query.name, $options: "i" };
-  }
-
-  // Filter by stock status
-  if (req.query.instock !== undefined) {
-    filter.instock = req.query.instock === "true";
-  }
-
+  // Execute query with pagination
   const totalProducts = await Product.countDocuments(filter);
   const products = await Product.find(filter)
-    .skip(skip)
-    .limit(limit)
+    .skip(pagination.skip)
+    .limit(pagination.limit)
     .populate("seller_id", "name shopName")
-    .sort({ createdAt: -1 });
+    .sort(sort);
+
+  // Build pagination metadata
+  const paginationMeta = buildPaginationMeta(
+    totalProducts,
+    pagination.page,
+    pagination.limit
+  );
 
   res.status(200).json({
     success: true,
-    page,
-    limit,
     message: "Products fetched successfully",
-    totalProducts,
-    totalPages: Math.ceil(totalProducts / limit),
+    ...paginationMeta,
     products,
   });
 });
