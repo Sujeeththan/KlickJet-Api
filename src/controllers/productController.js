@@ -118,9 +118,14 @@ export const updateProduct = catchAsync(async (req, res, next) => {
   }
 
   // Check if seller owns this product (or admin)
-  if (req.user.role === "seller" && product.seller_id?.toString() !== req.user.id) {
-    return next(new AppError("Not authorized to update this product", 403));
-  }
+// Check seller permission
+if (req.user.role === "seller") {
+    // If product has no seller_id or mismatch → deny access
+    if (!product.seller_id || product.seller_id.toString() !== req.user.id.toString()) {
+        return next(new AppError("Not authorized to update this product", 403));
+    }
+}
+
 
   // Validation
   if (req.body.price !== undefined && req.body.price < 0) {

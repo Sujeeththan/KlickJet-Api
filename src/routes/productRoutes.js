@@ -17,7 +17,7 @@ productRouter.get("/:id", optionalAuth, getProductById);
 
 // Protected routes - sellers can manage their products
 productRouter.post("/", verifyToken, verifyRole("seller"), createProduct);
-productRouter.put("/:id", verifyToken, verifyRole("seller"), updateProduct);
+productRouter.put("/:id", verifyToken, verifyRole(["seller", "admin"]), updateProduct);
 productRouter.delete("/:id", verifyToken, verifyRole("seller"), deleteProduct);
 
 export default productRouter;
