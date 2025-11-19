@@ -84,8 +84,8 @@ export const createPayment = catchAsync(async (req, res, next) => {
   }
 
   // Validate payment method
-  if (!["cash", "credit_card", "online", "upi"].includes(payment_method)) {
-    return next(new AppError("Invalid payment method. Must be one of: cash, credit_card, online, upi", 400));
+  if (!["cash on delivery", "card"].includes(payment_method)) {
+    return next(new AppError("Invalid payment method. Must be one of: cash on delivery, card", 400));
   }
 
   // Check if order exists and belongs to the customer

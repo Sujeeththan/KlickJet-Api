@@ -13,7 +13,7 @@ const productSchema = new mongoose.Schema(
       min: 0,
     },
     instock: {
-      type: Boolean,
+      type: Number,
       default: true,
     },
     discount: {

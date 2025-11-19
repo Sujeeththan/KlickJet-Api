@@ -8,7 +8,7 @@ const paymentSchema = new mongoose.Schema({
   },
   payment_method: {
     type: String,
-    enum: ["cash", "credit_card", "online", "upi"],
+    enum: ["cash on delivery", "cart"],
     required: true,
   },
   order_id: {
