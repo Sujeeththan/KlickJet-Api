@@ -16,7 +16,7 @@ import reviewRouter from "./src/routes/reviewRoutes.js";
 import deliveryRouter from "./src/routes/deliveryRoutes.js";
 import paymentRouter from "./src/routes/paymentRoutes.js";
 
-const allowedOrigins = [];
+const allowedOrigins = ["http://localhost:3000"];
 
 const app = express();
 app.use(express.json());
