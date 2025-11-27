@@ -67,6 +67,12 @@ const sellerSchema = new mongoose.Schema(
       default: null,
     },
 
+    rejectionReason: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+
     isActive: {
       type: Boolean,
       default: true,
