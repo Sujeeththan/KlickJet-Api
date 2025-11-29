@@ -15,6 +15,7 @@ import orderRouter from "./src/routes/orderRoutes.js";
 import reviewRouter from "./src/routes/reviewRoutes.js";
 import deliveryRouter from "./src/routes/deliveryRoutes.js";
 import paymentRouter from "./src/routes/paymentRoutes.js";
+import categoryRouter from "./src/routes/categoryRoutes.js";
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -43,7 +44,7 @@ app.get("/", (req, res) => {
   res.send("KlickJet Server is running");
 });
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 5000;
 
 connectDB();
 
@@ -65,6 +66,7 @@ app.use("/api/orders", orderRouter);
 app.use("/api/reviews", reviewRouter);
 app.use("/api/deliveries", deliveryRouter);
 app.use("/api/payments", paymentRouter);
+app.use("/api/categories", categoryRouter);
 
 // 404 Handler - must be after all routes
 app.use(notFound);

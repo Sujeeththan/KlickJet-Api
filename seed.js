@@ -111,9 +111,34 @@ const seedDatabase = async () => {
     }
     console.log(` ${customers.length} Customers created\n`);
 
+    // Seed Categories
+    console.log(" Seeding Categories...");
+    const categoriesData = [
+      { name: "Electronics", description: "Gadgets and devices", image: "https://placehold.co/600x400?text=Electronics" },
+      { name: "Clothing", description: "Men and Women fashion", image: "https://placehold.co/600x400?text=Clothing" },
+      { name: "Home & Kitchen", description: "Essentials for your home", image: "https://placehold.co/600x400?text=Home" },
+      { name: "Books", description: "Read your favorite books", image: "https://placehold.co/600x400?text=Books" },
+      { name: "Beauty", description: "Makeup and skincare", image: "https://placehold.co/600x400?text=Beauty" },
+    ];
+    
+    // Import Category model dynamically or assume it's imported at top
+    // Since we can't easily change imports at top without reading file again, let's assume we need to add import.
+    // Actually, I'll use a separate replace for imports.
+    
+    // For now, let's just add the logic assuming Import exists, I will add import in next step.
+    const Category = (await import("./src/models/Category.js")).default;
+    await Category.deleteMany({});
+    
+    const categories = await Category.insertMany(categoriesData);
+    console.log(` ${categories.length} Categories created\n`);
+
     // Seed Products (Items)
     console.log(" Seeding Products (Items)...");
-    const products = await Product.insertMany(sampleData.products);
+    const productsWithCategories = sampleData.products.map(product => ({
+      ...product,
+      category: categories[Math.floor(Math.random() * categories.length)]._id
+    }));
+    const products = await Product.insertMany(productsWithCategories);
     console.log(` ${products.length} Products created\n`);
 
     // Seed Orders (Bookings)
