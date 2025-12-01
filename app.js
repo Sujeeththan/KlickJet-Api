@@ -25,20 +25,31 @@ const allowedOrigins = [
 ];
 
 const app = express();
-app.use(express.json());
+
+// CORS configuration - must be before other middleware
 app.use(cors({ 
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow requests with no origin (like mobile apps, curl, or Postman)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) === -1 && !origin.includes('localhost')) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+    // Check if origin is in allowed list or contains localhost
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost')) {
+      return callback(null, true);
     }
-    return callback(null, true);
+    
+    const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+    return callback(new Error(msg), false);
   },
-  credentials: true 
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
+
+// Handle preflight requests
+app.options('*', cors());
+
+app.use(express.json());
 
 app.get("/", (req, res) => {
   res.send("KlickJet Server is running");
@@ -46,7 +57,24 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-connectDB();
+// Start server function
+const startServer = async () => {
+  try {
+    // Connect to database first
+    await connectDB();
+    
+    // Start listening only after DB is connected
+    app.listen(PORT, () =>
+      console.log(`Server is running in http://localhost:${PORT}`)
+    );
+  } catch (error) {
+    console.error("Failed to start server:", error.message);
+    process.exit(1);
+  }
+};
+
+// Start the server
+startServer();
 
 // Authentication routes
 app.use("/api/auth", authRouter);
@@ -73,7 +101,3 @@ app.use(notFound);
 
 // Global Error Handler - must be last
 app.use(errorHandler);
-
-app.listen(PORT, () =>
-  console.log(`Server is running in http://localhost:${PORT}`)
-);
