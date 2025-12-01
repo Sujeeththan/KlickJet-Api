@@ -243,6 +243,7 @@ export const register = catchAsync(async (req, res, next) => {
 // @route   POST /api/auth/login
 // @access  Public
 export const login = catchAsync(async (req, res, next) => {
+  console.log("Login attempt:", req.body);
   const { email, password, role } = req.body;
 
   // Validate email
