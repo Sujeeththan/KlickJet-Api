@@ -70,7 +70,7 @@ export const getProductById = catchAsync(async (req, res, next) => {
 // @route   POST /api/products
 // @access  Private/Seller
 export const createProduct = catchAsync(async (req, res, next) => {
-  const { name, price, instock, discount, description } = req.body;
+  const { name, price, instock, discount, description, images } = req.body;
 
   // Validation - show first error only
   if (!name) {
@@ -93,6 +93,7 @@ export const createProduct = catchAsync(async (req, res, next) => {
     instock: instock !== undefined ? instock : true,
     discount: discount || 0,
     description: description ? description.trim() : "",
+    images: images || [],
     seller_id: req.user.id,
   };
 
@@ -138,7 +139,12 @@ if (req.user.role === "seller") {
   // Update product
   const updatedProduct = await Product.findByIdAndUpdate(
     id,
-    { ...req.body, name: req.body.name ? req.body.name.trim() : undefined, description: req.body.description ? req.body.description.trim() : undefined },
+    { 
+      ...req.body, 
+      name: req.body.name ? req.body.name.trim() : undefined, 
+      description: req.body.description ? req.body.description.trim() : undefined,
+      images: req.body.images || undefined
+    },
     {
       new: true,
       runValidators: true,
