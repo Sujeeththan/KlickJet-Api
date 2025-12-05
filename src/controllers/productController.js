@@ -9,56 +9,7 @@ import { buildQuery, buildPaginationMeta } from "../utils/queryBuilder.js";
 // @query   search, instock, price_min, price_max, discount_min, discount_max, seller_id, sort, sortOrder, page, limit
 export const getAllProducts = catchAsync(async (req, res, next) => {
 
-  // Process image URLs from request body (will come from Cloudinary)
-    let imageUrls = [];
-    if (req.body.images && Array.isArray(req.body.images)) {
-      imageUrls = req.body.images;
-    } else if (req.body.images && typeof req.body.images === 'string') {
-      // Handle comma-separated string
-      imageUrls = req.body.images.split(',').filter(Boolean);
-    }
 
-    // Deduplicate images by public ID (to prevent duplicate images)
-    const seenPublicIds = new Set();
-    const deduplicatedImages = [];
-    
-    for (const url of imageUrls) {
-      if (!url) continue; // Skip empty URLs
-      
-      const publicId = extractPublicId(url);
-      if (publicId) {
-        // Use public ID for deduplication (most reliable)
-        if (!seenPublicIds.has(publicId)) {
-          seenPublicIds.add(publicId);
-          deduplicatedImages.push(url);
-        }
-      } else {
-        // If we can't extract public ID, use normalized URL-based deduplication
-        const normalizedUrl = normalizeCloudinaryUrl(url);
-        if (normalizedUrl) {
-          const isDuplicate = deduplicatedImages.some(img => {
-            const normalizedExisting = normalizeCloudinaryUrl(img);
-            return normalizedExisting === normalizedUrl;
-          });
-          if (!isDuplicate) {
-            deduplicatedImages.push(url);
-          }
-        } else {
-          // Fallback: simple URL comparison
-          if (!deduplicatedImages.includes(url)) {
-            deduplicatedImages.push(url);
-          }
-        }
-      }
-    }
-    
-    imageUrls = deduplicatedImages;
-
-    // Validate mainImageIndex
-    let mainIdx = mainImageIndex ? parseInt(mainImageIndex, 10) : 0;
-    if (imageUrls.length > 0 && (mainIdx < 0 || mainIdx >= imageUrls.length)) {
-      mainIdx = 0; // Default to first image if invalid
-    }
 
   // Build query using the query builder utility
   const { filter, sort, pagination } = buildQuery({
@@ -122,7 +73,7 @@ export const getProductById = catchAsync(async (req, res, next) => {
 // @route   POST /api/products
 // @access  Private/Seller
 export const createProduct = catchAsync(async (req, res, next) => {
-  const { name, price, instock, discount, description, images } = req.body;
+  const { name, price, instock, discount, description, images, category } = req.body;
 
   // Validation - show first error only
   if (!name) {
@@ -146,6 +97,7 @@ export const createProduct = catchAsync(async (req, res, next) => {
     discount: discount || 0,
     description: description ? description.trim() : "",
     images: images || [],
+    category: category || undefined,
     seller_id: req.user.id,
   };
 
@@ -195,7 +147,8 @@ if (req.user.role === "seller") {
       ...req.body, 
       name: req.body.name ? req.body.name.trim() : undefined, 
       description: req.body.description ? req.body.description.trim() : undefined,
-      images: req.body.images || undefined
+      images: req.body.images || undefined,
+      category: req.body.category || undefined
     },
     {
       new: true,

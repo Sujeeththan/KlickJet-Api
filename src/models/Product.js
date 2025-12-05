@@ -54,7 +54,8 @@ const productSchema = new mongoose.Schema(
     validate: {
       validator: function(v) {
         // Allow mainImageIndex when images array is empty or when index is within bounds
-        if (!this.images || this.images.length === 0) {
+        // Check if this is defined and has images to avoid runtime errors
+        if (!this || !this.images || this.images.length === 0) {
           return true;
         }
         return v < this.images.length;
