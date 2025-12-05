@@ -265,57 +265,48 @@ export const login = catchAsync(async (req, res, next) => {
 
   if (role) {
     // If role is provided, search in specific model
-    if (role === "admin") {
-      user = await User.findOne({
-        email: email.toLowerCase().trim(),
-        role: "admin",
-      }).select("+password");
-      if (user) userRole = "admin";
-    } else if (role === "customer") {
-      user = await Customer.findOne({
-        email: email.toLowerCase().trim(),
-      }).select("+password");
-      if (user) userRole = "customer";
-    } else if (role === "seller") {
-      user = await Seller.findOne({ email: email.toLowerCase().trim() }).select("+password");
-      if (user) userRole = "seller";
-    } else if (role === "deliverer") {
-      user = await Deliverer.findOne({ email: email.toLowerCase().trim() }).select("+password");
-      if (user) userRole = "deliverer";
-    } else {
+    const models = {
+      admin: User,
+      customer: Customer,
+      seller: Seller,
+      deliverer: Deliverer
+    };
+
+    if (!models[role]) {
       return next(new AppError("Invalid role. Must be one of: admin, customer, seller, deliverer", 400));
     }
+
+    user = await models[role].findOne({ email: email.toLowerCase().trim() }).select("+password");
+    if (user) userRole = role;
+
   } else {
-    // If role is not provided, search all models
-    user = await User.findOne({
-      email: email.toLowerCase().trim(),
-      role: "admin",
-    }).select("+password");
+    // If role is not provided, search all models sequentially
+    // Check Admin first
+    user = await User.findOne({ email: email.toLowerCase().trim() }).select("+password");
     if (user) {
       userRole = "admin";
-    } else {
-      user = await Customer.findOne({
-        email: email.toLowerCase().trim(),
-      }).select("+password");
-      if (user) {
-        userRole = "customer";
-      } else {
-        user = await Seller.findOne({
-          email: email.toLowerCase().trim(),
-        }).select("+password");
-        if (user) {
-          userRole = "seller";
-        } else {
-          user = await Deliverer.findOne({
-            email: email.toLowerCase().trim(),
-          }).select("+password");
-          if (user) {
-            userRole = "deliverer";
-          }
-        }
-      }
+    }
+
+    // Check Customer
+    if (!user) {
+      user = await Customer.findOne({ email: email.toLowerCase().trim() }).select("+password");
+      if (user) userRole = "customer";
+    }
+
+    // Check Seller
+    if (!user) {
+      user = await Seller.findOne({ email: email.toLowerCase().trim() }).select("+password");
+      if (user) userRole = "seller";
+    }
+
+    // Check Deliverer
+    if (!user) {
+      user = await Deliverer.findOne({ email: email.toLowerCase().trim() }).select("+password");
+      if (user) userRole = "deliverer";
     }
   }
+
+  console.log(`Login attempt for ${email}: User found = ${!!user}, Role = ${userRole}`);
 
   // Check if user exists
   if (!user) {

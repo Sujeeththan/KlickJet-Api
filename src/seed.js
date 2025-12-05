@@ -46,10 +46,10 @@ const seedDatabase = async () => {
 
     // Seed Admin User
     console.log(" Seeding Admin User...");
-    const adminPassword = await hashPassword(sampleData.admin.password);
+    // const adminPassword = await hashPassword(sampleData.admin.password); // REMOVED: Model handles hashing
     const adminUser = await User.create({
       ...sampleData.admin,
-      password: adminPassword,
+      // password: adminPassword,
     });
     console.log(` Admin created: ${adminUser.email} (ID: ${adminUser._id})\n`);
 
