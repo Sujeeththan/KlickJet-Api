@@ -28,8 +28,8 @@ const productSchema = new mongoose.Schema(
       required: false, // Optional for backward compatibility
     },
     category: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Category",
+      type: String,
+      trim: true,
       required: false,
     },
     description: {
