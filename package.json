@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "nodemon app.js",
     "start": "node app.js",
-    "seed": "node seed.js"
+    "seed": "node src/seed.js"
   },
   "keywords": [],
   "author": "",
