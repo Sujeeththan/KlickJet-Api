@@ -9,6 +9,12 @@ import { catchAsync } from "./errorHandler.js";
 // Token blacklist to store invalidated tokens
 const tokenBlacklist = new Set();
 
+export const authenticate = (req, res, next) => {
+  
+  console.log("Auth middleware works");
+  next();
+};
+
 // Add token to blacklist
 export const addToBlacklist = (token) => {
   tokenBlacklist.add(token);

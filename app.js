@@ -16,6 +16,8 @@ import reviewRouter from "./src/routes/reviewRoutes.js";
 import deliveryRouter from "./src/routes/deliveryRoutes.js";
 import paymentRouter from "./src/routes/paymentRoutes.js";
 import categoryRouter from "./src/routes/categoryRoutes.js";
+import uploadRouter from "./src/routes/uploadRoutes.js";
+import cartRouter from "./src/routes/cartRoutes.js";
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -96,6 +98,8 @@ app.use("/api/reviews", reviewRouter);
 app.use("/api/deliveries", deliveryRouter);
 app.use("/api/payments", paymentRouter);
 app.use("/api/categories", categoryRouter);
+app.use("/api/upload", uploadRouter);
+app.use("/api/cart", cartRouter);
 
 // 404 Handler - must be after all routes
 app.use(notFound);
