@@ -1,6 +1,7 @@
 import Seller from "../models/Seller.js";
 import Deliverer from "../models/Deliverer.js";
 import User from "../models/User.js";
+import Customer from "../models/Customer.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { catchAsync } from "../middleware/errorHandler.js";
 
@@ -255,24 +256,36 @@ export const getAllDeliverers = catchAsync(async (req, res, next) => {
   });
 });
 
-// @desc    Get all users (customers, sellers, deliverers)
+// @desc    Get all users (admins, customers, sellers, deliverers)
 // @route   GET /api/admin/users
 // @access  Private/Admin
 export const getAllUsers = catchAsync(async (req, res, next) => {
-  const [customers, sellers, deliverers] = await Promise.all([
+  const [admins, customers, sellers, deliverers] = await Promise.all([
     User.find().select("-password").sort({ createdAt: -1 }),
+    Customer.find().select("-password").sort({ createdAt: -1 }),
     Seller.find().select("-password").sort({ createdAt: -1 }),
     Deliverer.find().select("-password").sort({ createdAt: -1 }),
   ]);
 
   const allUsers = [
-    ...customers.map(user => ({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      status: user.isActive ? "active" : "inactive",
-      createdAt: user.createdAt,
+    ...admins.map(admin => ({
+      _id: admin._id,
+      name: admin.name,
+      email: admin.email,
+      role: "admin",
+      status: admin.isActive ? "active" : "inactive",
+      createdAt: admin.createdAt,
+      type: "admin"
+    })),
+    ...customers.map(customer => ({
+      _id: customer._id,
+      name: customer.name,
+      email: customer.email,
+      phone_no: customer.phone_no,
+      address: customer.address,
+      role: "customer",
+      status: customer.isActive ? "active" : "inactive",
+      createdAt: customer.createdAt,
       type: "customer"
     })),
     ...sellers.map(seller => ({
