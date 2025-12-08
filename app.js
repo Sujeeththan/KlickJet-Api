@@ -21,33 +21,38 @@ import cartRouter from "./src/routes/cartRoutes.js";
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "http://localhost:3001", 
+  "http://localhost:3001",
   "http://127.0.0.1:3000",
-  "https://klick-jet-api.vercel.app",
-  "https://klick-jet-client.vercel.app"
+  "https://klickjet.vercel.app",
 ];
 
 const app = express();
 
 // CORS configuration - must be before other middleware
-app.use(cors({ 
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, or Postman)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin is in allowed list or contains localhost
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost')) {
-      return callback(null, true);
-    }
-    
-    const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-    return callback(new Error(msg), false);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range']
-}));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps, curl, or Postman)
+      if (!origin) return callback(null, true);
+
+      // Check if origin is in allowed list or contains localhost
+      if (
+        allowedOrigins.indexOf(origin) !== -1 ||
+        origin.includes("localhost")
+      ) {
+        return callback(null, true);
+      }
+
+      const msg =
+        "The CORS policy for this site does not allow access from the specified Origin.";
+      return callback(new Error(msg), false);
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    exposedHeaders: ["Content-Range", "X-Content-Range"],
+  })
+);
 
 // Handle preflight requests
 app.options(/.*/, cors());
@@ -65,7 +70,7 @@ const startServer = async () => {
   try {
     // Connect to database first
     await connectDB();
-    
+
     // Start listening only after DB is connected
     app.listen(PORT, () =>
       console.log(`Server is running in http://localhost:${PORT}`)
