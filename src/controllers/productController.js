@@ -20,6 +20,7 @@ export const getAllProducts = catchAsync(async (req, res, next) => {
       price: "numberRange", // Supports price_min and price_max
       discount: "numberRange", // Supports discount_min and discount_max
       seller_id: "objectId",
+      category: "string",
     },
     roleBasedFilters: {
       seller: { seller_id: req.user?.id }, // Sellers only see their own products

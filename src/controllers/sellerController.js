@@ -49,6 +49,39 @@ export const getAllSellers = catchAsync(async (req, res, next) => {
   });
 });
 
+// @desc    Get approved sellers (Public)
+// @route   GET /api/sellers/public/approved
+// @access  Public
+export const getApprovedSellers = catchAsync(async (req, res, next) => {
+  const { filter, sort, pagination } = buildQuery({
+    query: req.query,
+    searchFields: ["name", "shopName", "address"],
+    filterFields: {
+      address: "string",
+      shopName: "string",
+    },
+    defaultFilters: {
+      status: "approved",
+      isActive: true,
+    },
+  });
+
+  const sellers = await Seller.find(filter)
+    .select("name shopName address _id email phone_no") // Public info only
+    .skip(pagination.skip)
+    .limit(pagination.limit)
+    .sort(sort);
+
+  const total = await Seller.countDocuments(filter);
+
+  res.status(200).json({
+    success: true,
+    count: sellers.length,
+    total,
+    sellers,
+  });
+});
+
 // @desc    Get seller by ID
 // @route   GET /api/sellers/:id
 // @access  Private/Admin or Seller (own profile)
