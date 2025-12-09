@@ -35,10 +35,11 @@ app.use(
       // Allow requests with no origin (like mobile apps, curl, or Postman)
       if (!origin) return callback(null, true);
 
-      // Check if origin is in allowed list or contains localhost
+      // Check if origin is in allowed list or contains localhost or is a Vercel deployment
       if (
         allowedOrigins.indexOf(origin) !== -1 ||
-        origin.includes("localhost")
+        origin.includes("localhost") ||
+        origin.endsWith(".vercel.app")
       ) {
         return callback(null, true);
       }
