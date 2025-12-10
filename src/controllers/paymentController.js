@@ -2,6 +2,7 @@ import Payment from "../models/Payment.js";
 import Order from "../models/Order.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { catchAsync } from "../middleware/errorHandler.js";
+import stripe from "../config/stripe.js";
 
 // @desc    Get all payments
 // @route   GET /api/payments
@@ -73,42 +74,140 @@ export const getPaymentById = catchAsync(async (req, res, next) => {
 // @route   POST /api/payments
 // @access  Private/Customer
 export const createPayment = catchAsync(async (req, res, next) => {
-  const { order_id, payment_method } = req.body;
+  const { order_id, payment_method, paymentDetails } = req.body;
+
+  console.log("Payment creation request:", {
+    order_id,
+    payment_method,
+    user_id: req.user.id,
+    user_role: req.user.role
+  });
 
   // Validation - show first error only
   if (!order_id) {
+    console.log("Validation failed: Order ID is missing");
     return next(new AppError("Order ID is required", 400));
   }
   if (!payment_method) {
+    console.log("Validation failed: Payment method is missing");
     return next(new AppError("Payment method is required", 400));
   }
 
   // Validate payment method
-  if (!["cash on delivery", "card"].includes(payment_method)) {
-    return next(new AppError("Invalid payment method. Must be one of: cash on delivery, card", 400));
+  if (!["cash on delivery", "card", "online"].includes(payment_method)) {
+    console.log("Validation failed: Invalid payment method:", payment_method);
+    return next(new AppError("Invalid payment method. Must be one of: cash on delivery, card, online", 400));
   }
 
   // Check if order exists and belongs to the customer
   const order = await Order.findById(order_id);
   if (!order) {
+    console.log("Order not found:", order_id);
     return next(new AppError("Order not found", 404));
   }
 
   // Customers can only create payments for their own orders
-  if (order.customer_id.toString() !== req.user.id) {
+  // Convert both IDs to strings for comparison
+  if (order.customer_id.toString() !== req.user.id.toString()) {
+    console.log("Payment authorization failed - Customer ID mismatch:", {
+      orderCustomerId: order.customer_id.toString(),
+      requestUserId: req.user.id.toString()
+    });
     return next(new AppError("Not authorized to create payment for this order", 403));
   }
 
   // Check if payment already exists for this order
   const existingPayment = await Payment.findOne({ order_id });
   if (existingPayment) {
-    return next(new AppError("Payment already exists for this order", 400));
+    console.log("Payment already exists for order:", order_id);
+    console.log("Existing payment:", {
+      payment_id: existingPayment._id,
+      status: existingPayment.status,
+      method: existingPayment.payment_method
+    });
+    
+    // If it's a pending online/card payment, return the existing payment details
+    if (
+      (existingPayment.payment_method === "online" || existingPayment.payment_method === "card") &&
+      existingPayment.status === "pending" &&
+      existingPayment.stripe_payment_intent
+    ) {
+      console.log("Returning existing pending Stripe payment");
+      
+      // Get the client secret from Stripe
+      try {
+        const paymentIntent = await stripe.paymentIntents.retrieve(
+          existingPayment.stripe_payment_intent
+        );
+        
+        const populatedPayment = await Payment.findById(existingPayment._id)
+          .populate("customer_id", "name email")
+          .populate("order_id", "total_amount status");
+
+        return res.status(200).json({
+          success: true,
+          message: "Payment intent retrieved successfully",
+          payment: populatedPayment,
+          stripeClientSecret: paymentIntent.client_secret,
+        });
+      } catch (stripeError) {
+        console.log("Failed to retrieve existing payment intent, will create new one");
+        // If we can't retrieve it, delete the old payment and create a new one
+        await Payment.findByIdAndDelete(existingPayment._id);
+      }
+    } else {
+      // For completed or COD payments, this is an error
+      return next(new AppError("Payment already exists for this order", 400));
+    }
+  }
+
+  console.log(" All validations passed, creating payment...");
+
+  let stripePaymentIntent = null;
+  let paymentStatus = "pending";
+
+  // Process Stripe payment if payment method is online/card
+  if (payment_method === "online" || payment_method === "card") {
+    // Check if Stripe is configured
+    if (!stripe) {
+      return next(new AppError("Online payment is not configured. Please contact support.", 503));
+    }
+
+    try {
+      // Create Stripe Payment Intent
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(order.total_amount * 100), // Stripe uses cents
+        currency: "lkr", // Sri Lankan Rupee
+        payment_method_types: ["card"],
+        metadata: {
+          order_id: order_id.toString(),
+          customer_id: req.user.id,
+        },
+        description: `Payment for Order #${order_id}`,
+      });
+
+      stripePaymentIntent = {
+        id: paymentIntent.id,
+        client_secret: paymentIntent.client_secret,
+        status: paymentIntent.status,
+      };
+
+      paymentStatus = paymentIntent.status === "succeeded" ? "completed" : "pending";
+    } catch (stripeError) {
+      console.error("Stripe payment error:", stripeError);
+      return next(new AppError(`Payment processing failed: ${stripeError.message}`, 400));
+    }
+  } else if (payment_method === "cash on delivery") {
+    // COD payments are pending until delivery
+    paymentStatus = "pending";
   }
 
   const payment = await Payment.create({
     customer_id: req.user.id,
     order_id,
     payment_method,
+    status: paymentStatus,
+    stripe_payment_intent: stripePaymentIntent?.id,
   });
 
   const populatedPayment = await Payment.findById(payment._id)
@@ -119,6 +218,7 @@ export const createPayment = catchAsync(async (req, res, next) => {
     success: true,
     message: "Payment created successfully",
     payment: populatedPayment,
+    stripeClientSecret: stripePaymentIntent?.client_secret, // Frontend needs this to confirm payment
   });
 });
 

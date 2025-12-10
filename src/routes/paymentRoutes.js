@@ -14,7 +14,7 @@ const paymentRouter = express.Router();
 // All routes require authentication
 paymentRouter.get("/", verifyToken, verifyRole(["admin", "seller"]), getAllPayments);
 paymentRouter.get("/:id", verifyToken, verifyRole(["admin", "customer", "seller"]), getPaymentById);
-paymentRouter.post("/", verifyToken, verifyRole("customer"), createPayment);
+paymentRouter.post("/", verifyToken, verifyRole(["customer"]), createPayment);
 paymentRouter.put("/:id", verifyToken, verifyRole("customer"), updatePayment);
 paymentRouter.delete("/:id", verifyToken, verifyRole("admin"), deletePayment);
 

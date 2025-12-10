@@ -83,6 +83,12 @@ export const verifyToken = catchAsync(async (req, res, next) => {
       email: user.email,
     };
 
+    console.log("🔐 User authenticated:", {
+      id: req.user.id,
+      role: req.user.role,
+      email: req.user.email
+    });
+
     // For sellers, check approval status and attach to request
     if (decoded.role === "seller" && user.status !== "approved") {
       req.user.isApproved = false;
