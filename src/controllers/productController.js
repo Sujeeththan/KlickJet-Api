@@ -175,7 +175,7 @@ export const deleteProduct = catchAsync(async (req, res, next) => {
   }
 
   // Check if seller owns this product (or admin)
-  if (req.user.role === "seller" && product.seller_id?.toString() !== req.user.id) {
+  if (req.user.role === "seller" && product.seller_id?.toString() !== req.user.id.toString()) {
     return next(new AppError("Not authorized to delete this product", 403));
   }
 
