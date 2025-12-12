@@ -6,10 +6,14 @@ import Product from "../models/Product.js";
 // @access  Private
 export const getCart = async (req, res) => {
   try {
-    let cart = await Cart.findOne({ user: req.user.id }).populate(
-      "items.product",
-      "name price images"
-    );
+    let cart = await Cart.findOne({ user: req.user.id }).populate({
+      path: "items.product",
+      select: "name price images seller_id",
+      populate: {
+        path: "seller_id",
+        select: "shopName name",
+      },
+    });
 
     if (!cart) {
       // Create empty cart if it doesn't exist
@@ -81,7 +85,14 @@ export const addToCart = async (req, res) => {
     await cart.save();
 
     // Populate product details before sending response
-    await cart.populate("items.product", "name price images");
+    await cart.populate({
+      path: "items.product",
+      select: "name price images seller_id",
+      populate: {
+        path: "seller_id",
+        select: "shopName name",
+      },
+    });
 
     res.status(200).json({
       success: true,
@@ -132,7 +143,14 @@ export const updateCartItem = async (req, res) => {
     item.quantity = quantity;
     await cart.save();
 
-    await cart.populate("items.product", "name price images");
+    await cart.populate({
+      path: "items.product",
+      select: "name price images seller_id",
+      populate: {
+        path: "seller_id",
+        select: "shopName name",
+      },
+    });
 
     res.status(200).json({
       success: true,
@@ -168,7 +186,14 @@ export const removeFromCart = async (req, res) => {
     cart.items.pull(itemId);
     await cart.save();
 
-    await cart.populate("items.product", "name price images");
+    await cart.populate({
+      path: "items.product",
+      select: "name price images seller_id",
+      populate: {
+        path: "seller_id",
+        select: "shopName name",
+      },
+    });
 
     res.status(200).json({
       success: true,
