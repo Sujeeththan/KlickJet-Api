@@ -81,6 +81,7 @@ export const verifyToken = catchAsync(async (req, res, next) => {
       id: user._id,
       role: decoded.role,
       email: user.email,
+      status: user.status,
     };
 
     console.log("🔐 User authenticated:", {
@@ -162,6 +163,7 @@ export const optionalAuth = catchAsync(async (req, res, next) => {
         id: user._id,
         role: decoded.role,
         email: user.email,
+        status: user.status,
       };
 
       // For sellers, check approval status and attach to request
