@@ -35,9 +35,6 @@ const sendTokenResponse = (user, role, statusCode, res, message) => {
     userData.shopName = user.shopName;
     userData.phone_no = user.phone_no;
     userData.address = user.address;
-    userData.shopName = user.shopName;
-    userData.phone_no = user.phone_no;
-    userData.address = user.address;
     userData.shopImage = user.shopImage;
     userData.status = user.status;
   } else if (role === "deliverer") {
@@ -380,9 +377,6 @@ export const getMe = catchAsync(async (req, res, next) => {
     userData.phone_no = user.phone_no;
     userData.address = user.address;
   } else if (req.user.role === "seller") {
-    userData.shopName = user.shopName;
-    userData.phone_no = user.phone_no;
-    userData.address = user.address;
     userData.shopName = user.shopName;
     userData.phone_no = user.phone_no;
     userData.address = user.address;
