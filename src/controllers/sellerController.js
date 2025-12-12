@@ -67,7 +67,7 @@ export const getApprovedSellers = catchAsync(async (req, res, next) => {
   });
 
   const sellers = await Seller.find(filter)
-    .select("name shopName address _id email phone_no") // Public info only
+    .select("name shopName address _id email phone_no shopImage") // Public info only
     .skip(pagination.skip)
     .limit(pagination.limit)
     .sort(sort);
@@ -110,6 +110,8 @@ export const getSellerById = catchAsync(async (req, res, next) => {
 // @access  Private/Seller (own profile) or Admin
 export const updateSeller = catchAsync(async (req, res, next) => {
   const { id } = req.params;
+  console.log(`[DEBUG] updateSeller called for ID: ${id}`);
+  console.log(`[DEBUG] Request Body:`, req.body);
 
   const seller = await Seller.findById(id);
   if (!seller) {

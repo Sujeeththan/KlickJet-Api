@@ -50,6 +50,11 @@ const sellerSchema = new mongoose.Schema(
       trim: true,
     },
 
+    shopImage: {
+      type: String,
+      default: null,
+    },
+
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],

@@ -27,7 +27,7 @@ export const verifyRole = (...allowedRoles) => {
     console.log("✅ Role check passed for user:", req.user.id);
 
     // For sellers, also check if they are approved (unless admin is accessing)
-    if (req.user.role === "seller" && !req.user.isApproved && roles.includes("seller")) {
+    if (req.user.role === "seller" && req.user.status !== "approved" && roles.includes("seller")) {
       return next(
         new AppError(
           "Your seller account is pending approval. Please wait for admin approval.",
@@ -37,7 +37,7 @@ export const verifyRole = (...allowedRoles) => {
     }
 
     // For deliverers, also check if they are approved (unless admin is accessing)
-    if (req.user.role === "deliverer" && !req.user.isApproved && roles.includes("deliverer")) {
+    if (req.user.role === "deliverer" && req.user.status !== "approved" && roles.includes("deliverer")) {
       return next(
         new AppError(
           "Your deliverer account is pending approval. Please wait for admin approval.",
