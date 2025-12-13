@@ -1,4 +1,5 @@
 import Seller from "../models/Seller.js";
+import Product from "../models/Product.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { catchAsync } from "../middleware/errorHandler.js";
 import { buildQuery, buildPaginationMeta } from "../utils/queryBuilder.js";
@@ -179,9 +180,12 @@ export const deleteSeller = catchAsync(async (req, res, next) => {
     return next(new AppError("Seller not found", 404));
   }
 
+  // Delete all products associated with this seller
+  await Product.deleteMany({ seller_id: req.params.id });
+
   res.status(200).json({
     success: true,
-    message: "Seller deleted successfully",
+    message: "Seller and their associated products deleted successfully",
   });
 });
 
