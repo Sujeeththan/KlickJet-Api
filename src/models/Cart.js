@@ -22,32 +22,10 @@ const cartItemSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-   images: {
-    type: [String],
-    default: [],
-    validate: {
-      validator: function(v) {
-        return v.length <= 5;
-      },
-      message: 'Maximum 5 images allowed per product'
-    }
-  },
-  mainImageIndex: {
-    type: Number,
-    default: 0,
-    min: 0,
-    validate: {
-      validator: function(v) {
-        // Allow mainImageIndex when images array is empty or when index is within bounds
-        // Check if this is defined and has images to avoid runtime errors
-        if (!this || !this.images || this.images.length === 0) {
-          return true;
-        }
-        return v < this.images.length;
-      },
-      message: 'Main image index must be within the images array bounds'
-    }
-  },
+    image: {
+      type: String,
+      default: null,
+    },
   },
   {
     _id: true,
